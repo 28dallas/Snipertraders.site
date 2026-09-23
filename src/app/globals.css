@@ -227,7 +227,7 @@ body {
 .public-hero h1 strong span { color: #f34454; }
 .public-hero h1 i { display: inline-block; width: 4px; height: .8em; margin-left: .16rem; background: #20d886; vertical-align: -.05em; animation: blink 1s step-end infinite; }
 
-.testimonial-window { overflow: hidden; width: 100%; }
+.testimonial-window { width: 100%; margin-top: -34px; padding-top: 34px; overflow: hidden; }
 .testimonial-track { display: flex; gap: 1.35rem; width: max-content; animation: testimonial-scroll 42s linear infinite; }
 .testimonial-card { position: relative; width: min(29vw, 407px); min-height: 216px; padding: 3.9rem 1.5rem 1.15rem; text-align: left; background: rgba(3, 14, 28, .82); border: 1px solid #009dc5; border-radius: 0 6px 6px 6px; box-shadow: inset 0 0 30px rgba(0, 127, 177, .07), 0 0 20px rgba(0, 104, 167, .1); }
 .testimonial-teal { border-color: #00d8b5; }
