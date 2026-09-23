@@ -5,7 +5,7 @@ import Link from 'next/link'
 const SECTIONS = [
   {
     title: '1. Information We Process',
-    body: 'RangerTrader operates as a client-side trading companion. When you connect your Deriv account via OAuth, your access token is returned directly to your browser. It is stored locally in your browser (via secure cookies/localStorage) to maintain your active trading session and authenticate WebSocket connections to Deriv.',
+    body: 'SniperTraders operates as a client-side trading companion. When you connect your Deriv account via OAuth, your access token is returned directly to your browser. It is stored locally in your browser (via secure cookies/localStorage) to maintain your active trading session and authenticate WebSocket connections to Deriv.',
   },
   {
     title: '2. Client-Side Non-Custodial Security',

@@ -54,7 +54,7 @@ export default function RiskNotice() {
               <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <div className="text-slate-200">
-                  <strong className="text-white">Non-Custodial Architecture:</strong> RangerTrader connects directly to Deriv official WebSockets (`ws.derivws.com`). Your account password and tokens are never sent to or stored on our servers.
+                  <strong className="text-white">Non-Custodial Architecture:</strong> SniperTraders connects directly to Deriv official WebSockets (`ws.derivws.com`). Your account password and tokens are never sent to or stored on our servers.
                 </div>
               </div>
             </div>

@@ -1,93 +1,104 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ShieldCheck, Zap, Activity } from 'lucide-react'
-import HeroSection from '@/components/sections/HeroSection'
-import FeaturesSection from '@/components/sections/FeaturesSection'
-import TestimonialsSection from '@/components/sections/TestimonialsSection'
+import { ArrowDown, ChevronRight, Maximize, Sun } from 'lucide-react'
+import { getDerivSession } from '@/lib/deriv-session'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
-import { getDerivSession, DerivSession } from '@/lib/deriv-session'
+
+const TICKERS = [
+  ['VOL 10', 'Loading...'], ['VOL 25', 'Loading...'], ['VOL 50', 'Loading...'],
+  ['VOL 75', 'Loading...'], ['VOL 100', 'Loading...'], ['VOL 10 (1S)', 'Loading...'],
+  ['VOL 100 (1S)', 'Loading...'], ['BULL MARKET', 'Loading...'], ['BEAR MARKET', 'Loading...'],
+]
+
+const TESTIMONIALS = [
+  { initials: 'MG', name: 'Maya Gonzales', role: 'Financial Day Trader', tone: 'cyan', quote: "SniperTraders transformed my trading. The automated bots handle my trades flawlessly, and I've seen consistent profits." },
+  { initials: 'KM', name: 'Kelvin Maxwell', role: 'Crypto Investor', tone: 'teal', quote: 'Copy trading feature is incredible! I follow top performers and my portfolio has grown 40% in 3 months.' },
+  { initials: 'DG', name: 'Delvoux Glen', role: 'Forex Specialist', tone: 'violet', quote: 'Lightning-fast execution and professional-grade tools. The risk management features saved me from major losses.' },
+  { initials: 'AK', name: 'Aisha Khan', role: 'Algorithmic Trader', tone: 'pink', quote: 'The strategy builder makes writing and testing a strategy feel effortless. The results speak for themselves.' },
+]
+
+const STATS = [
+  ['16K+', 'Active Traders'], ['0.8B+', 'Trading Volume'], ['32.0%', 'Uptime'], ['45+', 'Trading Pairs'],
+]
 
 export default function HomePage() {
-  const [session, setSession] = useState<DerivSession | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [typedText, setTypedText] = useState('')
+  const [hasSession, setHasSession] = useState(false)
+  const greeting = useMemo(() => 'Welcome to SniperTraders', [])
 
   useEffect(() => {
-    setSession(getDerivSession())
-  }, [])
+    setHasSession(Boolean(getDerivSession()))
+    const loadingTimer = window.setTimeout(() => setLoading(false), 1800)
+    let character = 0
+    const typingTimer = window.setInterval(() => {
+      character += 1
+      setTypedText(greeting.slice(0, character))
+      if (character >= greeting.length) window.clearInterval(typingTimer)
+    }, 95)
+
+    return () => {
+      window.clearTimeout(loadingTimer)
+      window.clearInterval(typingTimer)
+    }
+  }, [greeting])
+
+  if (loading) {
+    return (
+      <main className="public-home public-loading min-h-screen">
+        <div className="loading-panel">
+          <BrandMark />
+          <div className="loading-divider" />
+          <h1>Welcome to SniperTraders</h1>
+          <p>Empowering your financial journey.</p>
+          <div className="loading-progress"><span /></div>
+          <div className="loading-status"><span /> Connecting to Volatility Markets...</div>
+          <div className="loading-features">
+            <Feature icon="📊" label="Advanced Charts" />
+            <Feature icon="🤖" label="Trading Bots" />
+            <Feature icon="▣" label="Copy Trading" />
+          </div>
+          <em>Preparing a seamless trading experience for you</em>
+        </div>
+      </main>
+    )
+  }
 
   return (
-    <main className="min-h-screen bg-background text-white selection:bg-primary/30 selection:text-white">
-      {/* Active Session Notification Bar */}
-      {session && (
-        <div className="bg-gradient-to-r from-primary/15 via-[#121829] to-accent/15 border-b border-primary/25 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-profit animate-pulse" />
-              <span className="text-slate-200 font-medium">
-                Deriv Account Connected:{' '}
-                <strong className="text-white font-mono">{session.loginid || session.account}</strong>
-                {session.is_virtual && (
-                  <span className="ml-2 text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-mono">
-                    DEMO
-                  </span>
-                )}
-              </span>
-            </div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary text-black font-bold text-xs hover:bg-primary/90 transition-all"
-            >
-              Open Trading Dashboard
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+    <main className="public-home min-h-screen">
+      <header className="public-header">
+        <Link href="/" aria-label="SniperTraders home"><BrandMark compact /></Link>
+        <div className="public-actions">
+          {hasSession ? <Link href="/dashboard" className="public-login">Open Dashboard <ChevronRight /></Link> : <DerivConnectButton showIcon={false} className="public-login">Login Now <ChevronRight /></DerivConnectButton>}
+          {!hasSession && <Link href="/auth/signup" className="public-signup">Sign Up</Link>}
         </div>
-      )}
-
-      {/* Hero Section */}
-      <HeroSection />
-
-      {/* Core Features / Modules Showcase */}
-      <FeaturesSection />
-
-      {/* Trader Testimonials */}
-      <TestimonialsSection />
-
-      {/* Bottom Conversion CTA */}
-      <section className="py-20 relative overflow-hidden bg-gradient-to-b from-[#0a0e1a] to-[#0d1424] border-t border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
-            <Zap className="w-7 h-7 text-primary" />
-          </div>
-
-          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight mb-4">
-            Trade with Real-Time Precision Today
-          </h2>
-
-          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto mb-8">
-            Connect securely via official Deriv OAuth 2.0 in seconds. No credit card required, instant access to virtual demo and real trading.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <DerivConnectButton className="inline-flex items-center justify-center gap-2.5 rounded-full px-8 py-4 text-base sm:text-lg font-bold text-black gradient-ranger shadow-[0_0_35px_rgba(0,210,180,0.35)] hover:scale-[1.02] transition-all w-full sm:w-auto">
-              Start Trading Now
-              <ArrowRight className="w-5 h-5" />
-            </DerivConnectButton>
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              Non-custodial tokens
-            </span>
-            <span>•</span>
-            <span>24/7 Synthetic Indices</span>
-            <span>•</span>
-            <span>Direct WebSocket</span>
-          </div>
+      </header>
+      <div className="market-ticker" aria-label="Live market prices">
+        <div className="ticker-track">{[...TICKERS, ...TICKERS].map(([name, value], index) => <span key={`${name}-${index}`}><b>{name}</b> {value}</span>)}</div>
+      </div>
+      <section className="public-hero">
+        <p className="hero-greeting">Good evening</p>
+        <h1>{typedText.split('SniperTraders')[0]}<strong>Sniper<span>Traders</span></strong><i /></h1>
+        <div className="testimonial-window">
+          <div className="testimonial-track">{[...TESTIMONIALS, ...TESTIMONIALS].map((item, index) => <Testimonial key={`${item.initials}-${index}`} {...item} />)}</div>
         </div>
+        <div className="public-stats">{STATS.map(([value, label]) => <div className="public-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}</div>
       </section>
+      <footer className="public-footer"><span className="footer-live" /><span>2026-09-23 20:07:59 GMT</span><ArrowDown /><Sun /><span>🇬🇧 EN</span><Maximize /></footer>
     </main>
   )
+}
+
+function BrandMark({ compact = false }: { compact?: boolean }) {
+  return <div className={`brand-mark ${compact ? 'brand-mark-compact' : ''}`}><strong><span>SNIPER</span>TRADERS</strong>{!compact && <small>TRADING HUB <b>● LIVE</b></small>}</div>
+}
+
+function Feature({ icon, label }: { icon: string; label: string }) {
+  return <div><span>{icon}</span><small>{label}</small></div>
+}
+
+function Testimonial({ initials, name, role, tone, quote }: (typeof TESTIMONIALS)[number]) {
+  return <article className={`testimonial-card testimonial-${tone}`}><div className="avatar">{initials}</div><b className="quote-mark">&rdquo;</b><p>&ldquo;{quote}&rdquo;</p><div className="testimonial-person"><strong>{name}</strong><small>{role}</small><span>★★★★★</span></div></article>
 }

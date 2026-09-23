@@ -127,7 +127,7 @@ export default function CopyTradingPage() {
         <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div className="text-xs text-slate-300 leading-relaxed">
           <strong className="text-white block mb-0.5 font-semibold">Transparent Performance Advisory:</strong>
-          RangerTrader does not display fabricated win rates or fake social profiles. All strategies below are algorithmic model benchmarks that can be verified and executed directly through your Deriv account in Auto Trader or Bot Builder.
+          SniperTraders does not display fabricated win rates or fake social profiles. All strategies below are algorithmic model benchmarks that can be verified and executed directly through your Deriv account in Auto Trader or Bot Builder.
         </div>
       </div>
 

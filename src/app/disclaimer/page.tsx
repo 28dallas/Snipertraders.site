@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 const SECTIONS = [
   {
     title: '1. No Financial Advice',
-    body: 'RangerTrader is a software application providing non-custodial trading companion tools, automation scripts, analytical dashboards, and educational content. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. All content is strictly for informational and educational purposes.',
+    body: 'SniperTraders is a software application providing non-custodial trading companion tools, automation scripts, analytical dashboards, and educational content. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. All content is strictly for informational and educational purposes.',
   },
   {
     title: '2. Trading Risk Warning',
@@ -22,23 +22,23 @@ const SECTIONS = [
   },
   {
     title: '5. Copy Trading Strategy Risk',
-    body: 'When you execute automated strategy templates, you are running rules against live market conditions. Market spikes, connection interruptions, or slippage can impact execution. RangerTrader does not endorse or guarantee the performance of any strategy. You are solely responsible for setting your stake sizes, stop losses, and risk boundaries.',
+    body: 'When you execute automated strategy templates, you are running rules against live market conditions. Market spikes, connection interruptions, or slippage can impact execution. SniperTraders does not endorse or guarantee the performance of any strategy. You are solely responsible for setting your stake sizes, stop losses, and risk boundaries.',
   },
   {
     title: '6. Non-Custodial Architecture',
-    body: 'RangerTrader operates non-custodially: your Deriv authentication token remains within your client browser and connects directly to Deriv’s official WebSocket gateway. RangerTrader does not receive, store, or hold your trading capital.',
+    body: 'SniperTraders operates non-custodially: your Deriv authentication token remains within your client browser and connects directly to Deriv’s official WebSocket gateway. SniperTraders does not receive, store, or hold your trading capital.',
   },
   {
     title: '7. Independent Platform Notice',
-    body: 'RangerTrader is an independent third-party trading companion that interfaces with Deriv via their public API and OAuth protocol. RangerTrader is not affiliated with, officially endorsed by, or responsible for Deriv’s platform, pricing, availability, or execution policies.',
+    body: 'SniperTraders is an independent third-party trading companion that interfaces with Deriv via their public API and OAuth protocol. SniperTraders is not affiliated with, officially endorsed by, or responsible for Deriv’s platform, pricing, availability, or execution policies.',
   },
   {
     title: '8. User Responsibility',
-    body: 'You are solely responsible for all trading decisions made using this platform. This includes the selection of bots, stake sizes, risk management rules, and execution engines. RangerTrader provides client-side automation tools — the decisions and financial outcomes are exclusively yours.',
+    body: 'You are solely responsible for all trading decisions made using this platform. This includes the selection of bots, stake sizes, risk management rules, and execution engines. SniperTraders provides client-side automation tools — the decisions and financial outcomes are exclusively yours.',
   },
   {
     title: '9. Regulatory Notice',
-    body: 'RangerTrader is a software tools provider and is not a licensed financial advisor, broker, or investment manager. Users are responsible for ensuring that their trading activities comply with the laws and regulations of their jurisdiction.',
+    body: 'SniperTraders is a software tools provider and is not a licensed financial advisor, broker, or investment manager. Users are responsible for ensuring that their trading activities comply with the laws and regulations of their jurisdiction.',
   },
 ]
 
@@ -80,7 +80,7 @@ export default function DisclaimerPage() {
 
         <div className="mt-10 bg-card border border-border rounded-xl p-6 text-center">
           <p className="text-muted-foreground text-sm mb-4">
-            By using RangerTrader, you confirm that you have read and understood this disclaimer and accept full responsibility for your trading decisions.
+            By using SniperTraders, you confirm that you have read and understood this disclaimer and accept full responsibility for your trading decisions.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/dashboard" className="text-primary hover:underline text-sm font-medium">Open Trading Dashboard</Link>

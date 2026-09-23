@@ -3,12 +3,12 @@ import { Suspense } from 'react'
 import './globals.css'
 import SiteShell from '@/components/layout/SiteShell'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rangertrader.com'
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://snipertraders.com'
 
 export const metadata: Metadata = {
-  title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+  title: 'SniperTraders — Direct Execution Deriv Trading Companion',
   description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
-  keywords: 'RangerTrader, Deriv trading bots, Deriv bot builder, manual trader, automated trading, synthetic indices, Deriv API, D-Trader companion',
+  keywords: 'SniperTraders, Deriv trading bots, Deriv bot builder, manual trader, automated trading, synthetic indices, Deriv API, D-Trader companion',
   metadataBase: new URL(siteUrl),
   manifest: '/manifest.json',
   icons: {
@@ -17,25 +17,25 @@ export const metadata: Metadata = {
     apple: '/img/ranger-logo.svg',
   },
   openGraph: {
-    title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+    title: 'SniperTraders — Direct Execution Deriv Trading Companion',
     description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
     type: 'website',
-    siteName: 'RangerTrader',
+    siteName: 'SniperTraders',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@rangertrader',
-    title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+    site: '@snipertraders',
+    title: 'SniperTraders — Direct Execution Deriv Trading Companion',
     description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
   },
   robots: {
     index: true,
     follow: true,
   },
-  authors: [{ name: 'RangerTrader' }],
-  publisher: 'RangerTrader',
-  creator: 'RangerTrader',
+  authors: [{ name: 'SniperTraders' }],
+  publisher: 'SniperTraders',
+  creator: 'SniperTraders',
 }
 
 export default function RootLayout({

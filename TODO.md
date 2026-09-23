@@ -52,7 +52,7 @@
 - [x] Final `npm run build` verification — completed successfully, 52 pages generated, all routes present
 
 ## Phase 7 - Floating AI Trading Assistant
-- [x] Created `src/components/learn/FloatingAI.tsx` — floating chat widget (like dbtraders.com's LiveChat)
+- [x] Created `src/components/learn/FloatingAI.tsx` — floating chat widget (like snipertraders.com's LiveChat)
 - [x] Rule-based AI answers about markets, strategies, martingale, risk, bots, and account setup
 - [x] Quick-action chips for common questions
 - [x] Added to `src/app/layout.tsx` so it floats on every page (bottom-left, no overlap with account CTA)

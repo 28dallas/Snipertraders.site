@@ -32,7 +32,7 @@ const TRADING_MODULES = [
   {
     icon: ShieldCheck,
     title: 'Non-Custodial Architecture',
-    description: 'Tokens remain in your browser storage. RangerTrader connects directly to official Deriv WebSocket servers without intermediary server custody.',
+    description: 'Tokens remain in your browser storage. SniperTraders connects directly to official Deriv WebSocket servers without intermediary server custody.',
   },
 ]
 

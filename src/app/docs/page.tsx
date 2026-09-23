@@ -57,7 +57,7 @@ const SECTIONS = [
     color: 'text-teal-400',
     bg: 'bg-teal-400/10',
     articles: [
-      { title: 'How copy trading works on RangerTrader', href: '/dashboard/copy-trading' },
+      { title: 'How copy trading works on SniperTraders', href: '/dashboard/copy-trading' },
       { title: 'Reviewing strategy risk & strike rate', href: '/dashboard/copy-trading' },
       { title: 'Deploying strategy to Auto Trader', href: '/dashboard/auto-trader' },
     ],
@@ -94,7 +94,7 @@ export default function DocsPage() {
             Documentation
           </span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
-            How to Use <span className="gradient-text">RangerTrader</span>
+            How to Use <span className="gradient-text">SniperTraders</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             Direct Deriv execution companion — live WebSockets, automated strategies, and institutional trading tools.
@@ -152,7 +152,7 @@ export default function DocsPage() {
             <Link href="/dashboard" className="px-5 py-2.5 bg-primary text-black font-semibold rounded-xl hover:opacity-90 transition-all text-sm">
               Open Trading Dashboard
             </Link>
-            <a href="https://t.me/rangertrader" target="_blank" rel="noopener noreferrer"
+            <a href="https://t.me/snipertraders" target="_blank" rel="noopener noreferrer"
               className="px-5 py-2.5 border border-border text-white font-semibold rounded-xl hover:border-primary/40 hover:bg-white/5 transition-all text-sm">
               Community Telegram
             </a>

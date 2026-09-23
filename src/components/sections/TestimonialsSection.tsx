@@ -11,7 +11,7 @@ const TRADER_TESTIMONIALS = [
     country: 'United Kingdom',
     flag: '🇬🇧',
     rating: 5,
-    quote: 'The WebSocket execution speed on RangerTrader is night and day compared to standard web terminals. My digit match scalper runs flawlessly without lag.',
+    quote: 'The WebSocket execution speed on SniperTraders is night and day compared to standard web terminals. My digit match scalper runs flawlessly without lag.',
     avatar: 'AK',
   },
   {

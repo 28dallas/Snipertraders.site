@@ -56,14 +56,14 @@ export default function PwaPrompt() {
           <div className="w-10 h-10 rounded-xl bg-card border border-border p-1.5 flex items-center justify-center shrink-0">
             <Image
               src="/img/ranger-logo.svg"
-              alt="RangerTrader"
+              alt="SniperTraders"
               width={28}
               height={28}
               className="w-full h-full object-contain"
             />
           </div>
           <div>
-            <h4 className="text-white text-sm font-bold">Install RangerTrader</h4>
+            <h4 className="text-white text-sm font-bold">Install SniperTraders</h4>
             <p className="text-muted-foreground text-xs mt-0.5">
               Launch directly from your desktop or mobile home screen
             </p>

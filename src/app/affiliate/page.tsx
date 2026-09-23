@@ -44,7 +44,7 @@ export default function AffiliatePage() {
             Earn Recurring Income by <span className="gradient-text">Referring Traders</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
-            Join the RangerTrader affiliate program and partner with the leading Deriv execution companion — earn commissions as your network trades.
+            Join the SniperTraders affiliate program and partner with the leading Deriv execution companion — earn commissions as your network trades.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/contact" className="px-6 py-3 bg-primary text-black font-semibold rounded-xl hover:opacity-90 transition-all flex items-center gap-2">

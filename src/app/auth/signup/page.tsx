@@ -80,10 +80,10 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-extrabold">DB</span>
+              <span className="text-primary-foreground font-extrabold">SNIPER</span>
             </div>
             <span className="font-bold text-white text-lg">
-              DB<span className="text-primary">Traders</span>
+              Sniper<span className="text-primary">Traders</span>
             </span>
           </Link>
           <h1 className="text-2xl font-bold text-white">Create your account</h1>

@@ -159,3 +159,126 @@ body {
 .animate-scroll:hover {
   animation-play-state: paused;
 }
+
+.public-home {
+  position: relative;
+  overflow: hidden;
+  color: #f8fafc;
+  background: #03060d;
+  isolation: isolate;
+}
+
+.public-home::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(rgba(5, 20, 37, 0.34) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(5, 20, 37, 0.34) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 55%, rgba(0, 93, 144, 0.18), transparent 58%),
+    #03060d;
+  background-size: 58px 58px, 58px 58px, auto, auto;
+}
+
+.public-home::after {
+  content: '';
+  position: absolute;
+  inset: 26% 0 12%;
+  z-index: -1;
+  opacity: .55;
+  background: repeating-linear-gradient(90deg, transparent 0 7%, rgba(0, 210, 180, .12) 7.05% 7.12%, transparent 7.2% 12%);
+  transform: perspective(500px) rotateX(54deg) scale(1.35);
+  transform-origin: bottom;
+}
+
+.public-header {
+  height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  background: rgba(4, 10, 22, .92);
+  border-bottom: 1px solid rgba(31, 72, 106, .45);
+}
+
+.brand-mark { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.brand-mark strong { color: #f24258; font-size: clamp(1.8rem, 4vw, 3.1rem); font-weight: 900; line-height: .9; letter-spacing: -0.07em; text-shadow: 0 0 24px rgba(242, 66, 88, .35); }
+.brand-mark strong span { color: #00d2a9; }
+.brand-mark small { color: #687080; font-size: .5rem; font-weight: 800; letter-spacing: .45em; }
+.brand-mark small b { color: #00d2a9; border: 1px solid #00d2a9; border-radius: 999px; padding: 1px 6px; letter-spacing: .15em; }
+.brand-mark-compact strong { font-size: 1.1rem; letter-spacing: -.08em; }
+
+.public-actions { display: flex; align-items: center; gap: .55rem; }
+.public-login, .public-signup { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; min-height: 34px; padding: 0 1rem; border-radius: 999px; font-size: .7rem; font-weight: 800; }
+.public-login { color: #07101b; background: #f7f9fc; }
+.public-login svg { width: 14px; height: 14px; }
+.public-signup { color: #172033; background: #f7f9fc; }
+
+.market-ticker { overflow: hidden; height: 27px; background: rgba(3, 8, 17, .88); border-bottom: 1px solid rgba(25, 71, 110, .4); }
+.ticker-track { display: flex; width: max-content; animation: ticker 38s linear infinite; }
+.ticker-track span { min-width: 145px; padding: .42rem 1rem; color: #5f93c1; border-right: 1px solid rgba(31, 72, 106, .4); font-size: .62rem; font-weight: 600; white-space: nowrap; }
+.ticker-track b { color: #116ba4; margin-right: .35rem; }
+
+.public-hero { min-height: calc(100vh - 93px); padding: 1.25rem 0 4rem; text-align: center; }
+.hero-greeting { margin: .35rem 0 .65rem; color: #29d879; font-size: 1.15rem; font-weight: 700; }
+.public-hero h1 { min-height: 84px; margin: 0 auto 3.8rem; color: #f3f5fa; font-size: clamp(2.6rem, 6vw, 4.7rem); font-weight: 900; letter-spacing: -.06em; line-height: 1; }
+.public-hero h1 strong { color: #1fca6d; margin-left: .35rem; }
+.public-hero h1 strong span { color: #f34454; }
+.public-hero h1 i { display: inline-block; width: 4px; height: .8em; margin-left: .16rem; background: #20d886; vertical-align: -.05em; animation: blink 1s step-end infinite; }
+
+.testimonial-window { overflow: hidden; width: 100%; }
+.testimonial-track { display: flex; gap: 1.35rem; width: max-content; animation: testimonial-scroll 42s linear infinite; }
+.testimonial-card { position: relative; width: min(29vw, 407px); min-height: 216px; padding: 3.9rem 1.5rem 1.15rem; text-align: left; background: rgba(3, 14, 28, .82); border: 1px solid #009dc5; border-radius: 0 6px 6px 6px; box-shadow: inset 0 0 30px rgba(0, 127, 177, .07), 0 0 20px rgba(0, 104, 167, .1); }
+.testimonial-teal { border-color: #00d8b5; }
+.testimonial-violet { border-color: #9561f2; }
+.testimonial-pink { border-color: #c33a91; }
+.avatar { position: absolute; top: -29px; left: 50%; display: grid; width: 59px; height: 59px; place-items: center; transform: translateX(-50%); color: #dfe8f7; background: #08182c; border: 1px solid #087dab; border-radius: 50%; font-weight: 800; box-shadow: 0 0 0 8px rgba(3, 10, 21, .85); }
+.quote-mark { position: absolute; top: .25rem; right: 1.25rem; color: #09bfc8; font-size: 2rem; }
+.testimonial-card p { min-height: 75px; color: #a2afc2; font-size: .76rem; font-style: italic; line-height: 1.55; }
+.testimonial-person { display: flex; flex-direction: column; margin-top: 1rem; }
+.testimonial-person strong { color: #dbe4f2; font-size: .78rem; }
+.testimonial-person small { color: #08cbd3; font-size: .65rem; }
+.testimonial-violet .testimonial-person small { color: #a56bff; }
+.testimonial-person span { margin-top: .25rem; color: #ffc51b; font-size: .9rem; letter-spacing: .13em; }
+
+.public-stats { display: flex; justify-content: center; gap: 1.75rem; margin-top: 1.9rem; }
+.public-stat { display: flex; width: 96px; height: 96px; flex-direction: column; align-items: center; justify-content: center; background: rgba(3, 24, 48, .75); border: 1px solid #045c8b; border-radius: 50%; }
+.public-stat strong { color: #21d876; font-size: 1.1rem; }
+.public-stat span { margin-top: .45rem; color: #a9b8cb; font-size: .52rem; font-weight: 600; }
+.public-footer { position: absolute; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: flex-end; gap: 1rem; min-height: 28px; padding: 0 .75rem; color: #a4afc1; background: rgba(4, 12, 27, .85); font-size: .65rem; }
+.public-footer svg { width: 14px; height: 14px; }
+.footer-live { width: 10px; height: 10px; border-radius: 50%; background: #43cdc2; box-shadow: 0 0 10px #43cdc2; }
+
+.public-loading { display: grid; min-height: 100vh; place-items: center; }
+.loading-panel { width: min(640px, calc(100% - 2rem)); padding: 2.7rem 2.7rem 2rem; text-align: center; background: rgba(7, 13, 27, .84); border: 1px solid rgba(25, 74, 102, .65); border-radius: 23px; box-shadow: 0 0 45px rgba(0, 211, 179, .06); }
+.loading-panel h1 { margin-top: 1.35rem; color: #e6eaf2; font-size: 1.15rem; }
+.loading-panel p { margin-top: .55rem; color: #707988; font-size: .75rem; }
+.loading-divider { height: 1px; margin-top: 1.25rem; background: rgba(49, 57, 75, .55); }
+.loading-progress { height: 7px; margin-top: 1.35rem; overflow: hidden; background: #252a38; border-radius: 9px; }
+.loading-progress span { display: block; width: 22%; height: 100%; background: linear-gradient(90deg, #00cda9, #ff5166); border-radius: inherit; animation: load-progress 1.8s ease-in forwards; }
+.loading-status { display: flex; align-items: center; gap: .7rem; margin-top: 1.35rem; color: #777f8d; text-align: left; font-size: .75rem; }
+.loading-status span { width: 15px; height: 15px; border: 2px solid #00cda9; border-right-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+.loading-features { display: flex; justify-content: space-around; margin: 2.6rem 0 1.5rem; }
+.loading-features div { display: flex; flex-direction: column; align-items: center; gap: .6rem; color: #737b89; font-size: .65rem; }
+.loading-features span { display: grid; width: 64px; height: 64px; place-items: center; background: rgba(43, 49, 66, .46); border: 1px solid #30394c; border-radius: 50%; font-size: 1.15rem; }
+.loading-panel em { color: #596170; font-size: .7rem; }
+
+@keyframes ticker { to { transform: translateX(-50%); } }
+@keyframes testimonial-scroll { to { transform: translateX(-50%); } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes load-progress { from { width: 0; } to { width: 22%; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .public-header { padding: 0 .8rem; }
+  .public-hero { padding-top: 1.4rem; }
+  .public-hero h1 { min-height: 62px; margin-bottom: 3.4rem; font-size: 2.4rem; }
+  .testimonial-card { width: 78vw; min-height: 224px; }
+  .public-stats { gap: .45rem; }
+  .public-stat { width: 77px; height: 77px; }
+  .public-stat strong { font-size: .9rem; }
+  .public-stat span { font-size: .43rem; }
+  .public-footer { gap: .55rem; font-size: .52rem; }
+  .loading-panel { padding: 2rem 1.25rem 1.5rem; }
+}

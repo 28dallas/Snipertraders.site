@@ -1,13 +1,22 @@
-export const BRAND_NAME = 'RangerTrader'
+export const BRAND_NAME = 'SniperTraders'
 export const BRAND_TAGLINE = 'Direct Execution Deriv Trading Companion'
 
 const affiliateToken = process.env.NEXT_PUBLIC_DERIV_AFFILIATE_TOKEN || 'FA33FFDD-3AFC-47A5-BDD5-E838068CEE7A'
 const campaign = process.env.NEXT_PUBLIC_DERIV_CAMPAIGN || 'dynamicworks'
 
-// Registered Deriv App ID. Defaults to 1089 (Deriv default testing app ID) if unset.
-export const DERIV_APP_ID = process.env.NEXT_PUBLIC_DERIV_APP_ID || '1089'
+const configuredAppId = process.env.NEXT_PUBLIC_DERIV_APP_ID?.trim()
+
+// App 1089 is useful for local development only; production must use a registered app.
+export const DERIV_APP_ID = configuredAppId || (process.env.NODE_ENV === 'production' ? '' : '1089')
 export const DERIV_AFFILIATE_TOKEN = affiliateToken
 export const DERIV_CAMPAIGN = campaign
+
+export function getRequiredDerivAppId() {
+  if (!DERIV_APP_ID) {
+    throw new Error('NEXT_PUBLIC_DERIV_APP_ID is required in production.')
+  }
+  return DERIV_APP_ID
+}
 
 // Partner registration link
 export const DERIV_AFFILIATE_LINK =
@@ -26,13 +35,14 @@ export const DERIV_CASHIER_TRANSFER_URL = 'https://app.deriv.com/cashier/account
 /**
  * Deriv OAuth 2.0 authorization URL generator
  */
-export function getDerivOAuthUrl(origin: string) {
-  const appId = DERIV_APP_ID || '1089'
+export function getDerivOAuthUrl(origin: string, state?: string) {
+  const appId = getRequiredDerivAppId()
   const url = new URL('https://oauth.deriv.com/oauth2/authorize')
   url.searchParams.set('app_id', appId)
   if (DERIV_AFFILIATE_TOKEN) url.searchParams.set('affiliate_token', DERIV_AFFILIATE_TOKEN)
   if (DERIV_CAMPAIGN) url.searchParams.set('utm_campaign', DERIV_CAMPAIGN)
   url.searchParams.set('redirect_uri', `${origin}/auth/deriv/callback`)
+  if (state) url.searchParams.set('state', state)
   return url.toString()
 }
 

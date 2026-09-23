@@ -23,11 +23,13 @@ const TICKER_ITEMS = [
 export default function ConnectingOverlay({ isOpen, onClose }: ConnectingOverlayProps) {
   const [progress, setProgress] = useState(15)
   const [stage, setStage] = useState('Initializing market feed...')
+  const [configurationError, setConfigurationError] = useState('')
 
   useEffect(() => {
     if (!isOpen) {
       setProgress(15)
       setStage('Initializing market feed...')
+      setConfigurationError('')
       return
     }
 
@@ -44,11 +46,14 @@ export default function ConnectingOverlay({ isOpen, onClose }: ConnectingOverlay
     const t3 = setTimeout(() => {
       setProgress(100)
       setStage('Redirecting to Deriv OAuth authorization...')
-      const url = getDerivOAuthUrl(window.location.origin)
-      if (url) {
+      try {
+        const state = crypto.randomUUID()
+        sessionStorage.setItem('deriv_oauth_state', state)
+        const url = getDerivOAuthUrl(window.location.origin, state)
         window.location.assign(url)
-      } else {
-        alert('Deriv App ID is not configured. Please check .env.local.')
+      } catch (error) {
+        setConfigurationError(error instanceof Error ? error.message : 'Deriv OAuth is not configured.')
+        setStage('OAuth configuration is incomplete.')
       }
     }, 1200)
 
@@ -72,7 +77,7 @@ export default function ConnectingOverlay({ isOpen, onClose }: ConnectingOverlay
           <div className="w-16 h-16 rounded-2xl bg-card border border-border p-2.5 shadow-glow flex items-center justify-center">
             <Image
               src="/img/ranger-logo.svg"
-              alt="RangerTrader"
+              alt="SniperTraders"
               width={48}
               height={48}
               className="w-full h-full object-contain"
@@ -86,6 +91,7 @@ export default function ConnectingOverlay({ isOpen, onClose }: ConnectingOverlay
         <p className="text-muted-foreground text-xs sm:text-sm mt-1.5 font-medium">
           {stage}
         </p>
+        {configurationError && <p className="mt-3 text-xs font-semibold text-danger">{configurationError}</p>}
 
         {/* Progress bar */}
         <div className="mt-6 mb-6">

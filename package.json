@@ -1,7 +1,7 @@
 {
   "name": "ranger-trader",
   "version": "1.0.0",
-  "description": "RangerTrader — Direct Execution Deriv Trading Companion",
+  "description": "SniperTraders — Direct Execution Deriv Trading Companion",
   "private": true,
   "scripts": {
     "dev": "next dev",

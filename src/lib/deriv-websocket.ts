@@ -1,4 +1,4 @@
-import { DERIV_APP_ID } from '@/lib/constants'
+import { getRequiredDerivAppId } from '@/lib/constants'
 
 export interface DerivTick {
   ask: number
@@ -69,7 +69,7 @@ export class DerivWebSocket {
     if (this.isConnected) return Promise.resolve()
     if (this.isConnecting && this.connectionPromise) return this.connectionPromise
 
-    const appId = DERIV_APP_ID || '1089'
+    const appId = getRequiredDerivAppId()
     this.isConnecting = true
 
     this.connectionPromise = new Promise<void>((resolve, reject) => {

@@ -13,7 +13,7 @@ const STATS = [
 
 const VALUES = [
   { icon: Target, title: 'Direct Deriv Companion', desc: 'Every feature connects straight to Deriv’s official WebSocket gateway without middlemen or hidden markups.' },
-  { icon: Zap, title: 'Non-Custodial Architecture', desc: 'Your tokens and funds remain client-side in your browser. RangerTrader never touches or holds your capital.' },
+  { icon: Zap, title: 'Non-Custodial Architecture', desc: 'Your tokens and funds remain client-side in your browser. SniperTraders never touches or holds your capital.' },
   { icon: Globe, title: 'Modern Precision Tools', desc: 'Built for synthetic index traders globally, supporting Volatility 100, Boom/Crash, Step indices, and more.' },
   { icon: Shield, title: 'Transparent Execution', desc: 'Real tick analysis, genuine probability models, and unvarnished risk warnings. No fake win rates or hollow promises.' },
   { icon: Users, title: 'Community Driven', desc: 'Continuous enhancements powered by real traders exchanging proven algorithmic concepts and custom strategies.' },
@@ -30,13 +30,13 @@ export default function AboutPage() {
         <div className="absolute inset-0 grid-bg opacity-30" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary mb-6">
-            About RangerTrader
+            About SniperTraders
           </span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
             Engineered for <span className="gradient-text">Precision Trading</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            RangerTrader is a non-custodial trading companion for Deriv synthetic indices, combining real-time tick analysis, automated execution engines, and algorithmic risk management.
+            SniperTraders is a non-custodial trading companion for Deriv synthetic indices, combining real-time tick analysis, automated execution engines, and algorithmic risk management.
           </p>
         </div>
       </section>
@@ -64,10 +64,10 @@ export default function AboutPage() {
               Modern synthetic index trading demands sub-second precision, rigorous risk control, and automation. Yet most tools force traders through clunky interfaces, locked ecosystems, or black-box servers.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              RangerTrader was engineered as a direct-execution companion. By keeping your authentication token strictly in your browser and dispatching orders directly over WebSocket to Deriv’s high-speed nodes, you get zero custodian risk and ultra-low latency.
+              SniperTraders was engineered as a direct-execution companion. By keeping your authentication token strictly in your browser and dispatching orders directly over WebSocket to Deriv’s high-speed nodes, you get zero custodian risk and ultra-low latency.
             </p>
             <p className="text-muted-foreground leading-relaxed">
-              Whether you are testing algorithmic strategies on Virtual accounts or deploying multi-market bulk orders on Real accounts, RangerTrader provides complete transparency and power.
+              Whether you are testing algorithmic strategies on Virtual accounts or deploying multi-market bulk orders on Real accounts, SniperTraders provides complete transparency and power.
             </p>
           </div>
           <div className="bg-card border border-border rounded-2xl p-8">

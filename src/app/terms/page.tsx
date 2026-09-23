@@ -5,15 +5,15 @@ import Link from 'next/link'
 const SECTIONS = [
   {
     title: '1. Acceptance of Terms',
-    body: 'By connecting your Deriv account or using any part of the RangerTrader companion platform, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.',
+    body: 'By connecting your Deriv account or using any part of the SniperTraders companion platform, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.',
   },
   {
     title: '2. Platform Architecture & Custody',
-    body: 'RangerTrader is a non-custodial software interface. We do not hold deposits, maintain custody of user funds, or execute trades on our own servers. All transactions and authorizations are conducted client-side via Deriv’s official WebSocket gateway using your credentials.',
+    body: 'SniperTraders is a non-custodial software interface. We do not hold deposits, maintain custody of user funds, or execute trades on our own servers. All transactions and authorizations are conducted client-side via Deriv’s official WebSocket gateway using your credentials.',
   },
   {
     title: '3. Platform Access & Tools',
-    body: 'RangerTrader grants you access to automated trading runners, manual execution tools (D-Trader), analytical dashboards, and institutional strategy templates. All tools are unlocked upon authenticating with your authorized Deriv account.',
+    body: 'SniperTraders grants you access to automated trading runners, manual execution tools (D-Trader), analytical dashboards, and institutional strategy templates. All tools are unlocked upon authenticating with your authorized Deriv account.',
   },
   {
     title: '4. Acceptable Use',
@@ -21,7 +21,7 @@ const SECTIONS = [
   },
   {
     title: '5. Trading Risk Acknowledgment',
-    body: 'Trading synthetic indices and other financial instruments involves substantial risk of loss. RangerTrader provides software automation and analytical interfaces — not financial advice. Past performance of any bot, strategy, or algorithm is not indicative of future results. You acknowledge that you may lose some or all of your trading capital.',
+    body: 'Trading synthetic indices and other financial instruments involves substantial risk of loss. SniperTraders provides software automation and analytical interfaces — not financial advice. Past performance of any bot, strategy, or algorithm is not indicative of future results. You acknowledge that you may lose some or all of your trading capital.',
   },
   {
     title: '6. Bot & Strategy Automation',
@@ -33,19 +33,19 @@ const SECTIONS = [
   },
   {
     title: '8. Intellectual Property',
-    body: 'All platform code, user interface designs, proprietary indicators, and documentation are the intellectual property of RangerTrader. Unauthorized duplication or redistribution is strictly prohibited.',
+    body: 'All platform code, user interface designs, proprietary indicators, and documentation are the intellectual property of SniperTraders. Unauthorized duplication or redistribution is strictly prohibited.',
   },
   {
     title: '9. Limitation of Liability',
-    body: 'RangerTrader shall not be liable for any trading losses, missed executions, market slippage, API connection disruptions, or indirect damages resulting from your use of the platform. You use all tools at your own risk.',
+    body: 'SniperTraders shall not be liable for any trading losses, missed executions, market slippage, API connection disruptions, or indirect damages resulting from your use of the platform. You use all tools at your own risk.',
   },
   {
     title: '10. Third-Party Integration (Deriv)',
-    body: 'RangerTrader is an independent third-party companion connecting via Deriv API. Any changes, outages, or restrictions imposed by Deriv are outside of our control and subject to Deriv’s own terms and conditions.',
+    body: 'SniperTraders is an independent third-party companion connecting via Deriv API. Any changes, outages, or restrictions imposed by Deriv are outside of our control and subject to Deriv’s own terms and conditions.',
   },
   {
     title: '11. Changes to Terms',
-    body: 'We may update these terms periodically to reflect new features or regulatory requirements. Continued use of RangerTrader after updates constitutes acceptance of the modified terms.',
+    body: 'We may update these terms periodically to reflect new features or regulatory requirements. Continued use of SniperTraders after updates constitutes acceptance of the modified terms.',
   },
 ]
 

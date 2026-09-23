@@ -50,14 +50,14 @@ export default function Footer() {
               <div className="w-9 h-9 overflow-hidden rounded-xl border border-primary/30 bg-surface flex items-center justify-center p-1.5 shadow-sm">
                 <Image
                   src="/img/ranger-logo.svg"
-                  alt="RangerTrader logo"
+                  alt="SniperTraders logo"
                   width={28}
                   height={28}
                   className="h-full w-full object-contain"
                 />
               </div>
               <span className="font-bold text-white text-base tracking-tight">
-                Ranger<span className="text-primary">Trader</span>
+                Sniper<span className="text-primary">Traders</span>
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
@@ -94,10 +94,10 @@ export default function Footer() {
         <div className="mt-10 pt-6 border-t border-border">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-muted-foreground text-xs">
-              Copyright {new Date().getFullYear()} RangerTrader. All rights reserved.
+              Copyright {new Date().getFullYear()} SniperTraders. All rights reserved.
             </p>
             <p className="text-muted-foreground text-xs text-center md:text-right max-w-xl">
-              <strong className="text-warning">Risk Disclaimer:</strong> Trading synthetic indices and financial contracts involves substantial risk of loss. Past performance is not indicative of future results. RangerTrader operates non-custodially via official Deriv APIs and does not provide investment advice.
+              <strong className="text-warning">Risk Disclaimer:</strong> Trading synthetic indices and financial contracts involves substantial risk of loss. Past performance is not indicative of future results. SniperTraders operates non-custodially via official Deriv APIs and does not provide investment advice.
             </p>
           </div>
         </div>

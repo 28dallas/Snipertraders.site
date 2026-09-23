@@ -184,7 +184,7 @@ export default function WalletPage() {
         <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div className="text-xs text-slate-300 leading-relaxed">
           <strong className="text-white font-semibold block mb-0.5">Non-Custodial Guarantee:</strong>
-          All transactions are executed exclusively through Deriv&apos;s regulated cashier gateway. RangerTrader never processes, handles, or stores payment credentials or customer funds.
+          All transactions are executed exclusively through Deriv&apos;s regulated cashier gateway. SniperTraders never processes, handles, or stores payment credentials or customer funds.
         </div>
       </div>
 

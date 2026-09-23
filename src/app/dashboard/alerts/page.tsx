@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 
-const BOT_LINK = 'https://t.me/RangerTraderBot'
+const BOT_LINK = 'https://t.me/SniperTradersBot'
 
 const ALERT_SETTINGS = [
   { key: 'on_trade_open', label: 'On Trade Open', sub: 'Alert when a bot opens a new trade' },
@@ -101,7 +101,7 @@ export default function AlertsPage() {
               <p className="text-white text-sm font-semibold">Setup Instructions:</p>
               <ol className="space-y-2 text-muted-foreground text-sm">
                 <li className="flex gap-2"><span className="text-primary font-bold shrink-0">1.</span>Open Telegram and search for our bot</li>
-                <li className="flex gap-2"><span className="text-primary font-bold shrink-0">2.</span>Start a chat with <span className="text-primary font-mono">@RangerTraderBot</span></li>
+                <li className="flex gap-2"><span className="text-primary font-bold shrink-0">2.</span>Start a chat with <span className="text-primary font-mono">@SniperTradersBot</span></li>
                 <li className="flex gap-2"><span className="text-primary font-bold shrink-0">3.</span>Send the command <span className="text-primary font-mono">/start</span></li>
                 <li className="flex gap-2"><span className="text-primary font-bold shrink-0">4.</span>Paste your Chat ID from the bot reply below</li>
               </ol>
@@ -163,7 +163,7 @@ export default function AlertsPage() {
       <Card>
         <h2 className="text-white font-bold text-lg mb-4">Sample Alert Preview</h2>
         <div className="bg-background rounded-xl border border-border p-4 font-mono text-xs text-muted-foreground leading-relaxed">
-          <p className="text-success font-bold">✅ TRADE WIN — RangerTrader</p>
+          <p className="text-success font-bold">✅ TRADE WIN — SniperTraders</p>
           <p className="mt-1">🤖 Bot: Volatility Crusher v3</p>
           <p>📊 Market: Volatility 10 Index</p>
           <p>📈 Direction: Over 5</p>

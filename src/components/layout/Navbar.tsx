@@ -53,7 +53,7 @@ export default function Navbar() {
           <div className="w-8 h-8 rounded-xl bg-[#121829] border border-[#1e2a40] p-1 flex items-center justify-center group-hover:border-primary/50 transition-colors">
             <Image
               src="/img/ranger-logo.svg"
-              alt="RangerTrader logo"
+              alt="SniperTraders logo"
               width={26}
               height={26}
               className="w-full h-full object-contain"
@@ -61,7 +61,7 @@ export default function Navbar() {
           </div>
           <span className="flex flex-col">
             <span className="text-white font-extrabold text-base tracking-wide flex items-center gap-1">
-              Ranger<span className="text-primary">Trader</span>
+              Sniper<span className="text-primary">Traders</span>
             </span>
             <span className="text-[10px] text-muted-foreground font-mono">
               direct deriv companion

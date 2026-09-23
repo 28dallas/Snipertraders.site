@@ -1,6 +1,6 @@
 {
-  "name": "RangerTrader — Deriv Trading Companion",
-  "short_name": "RangerTrader",
+  "name": "SniperTraders — Deriv Trading Companion",
+  "short_name": "SniperTraders",
   "description": "Direct-execution Deriv trading companion with bot builder, automated strategy runners, and live market intelligence.",
   "start_url": "/dashboard",
   "display": "standalone",

@@ -17,7 +17,7 @@ export default function CommunityCTASection() {
             </div>
 
             <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
-              Join the RangerTrader Community
+              Join the SniperTraders Community
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
               Get live algorithmic setups, strategy updates, execution insights, and connect with active Deriv traders.

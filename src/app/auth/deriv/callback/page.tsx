@@ -17,6 +17,36 @@ function CallbackContent() {
 
   useEffect(() => {
     async function handleAuth() {
+      const returnedState = params.get('state')
+      const expectedState = sessionStorage.getItem('deriv_oauth_state')
+      window.history.replaceState({}, document.title, '/auth/deriv/callback')
+
+      if (expectedState) {
+        sessionStorage.removeItem('deriv_oauth_state')
+      }
+
+      if (expectedState && returnedState !== expectedState) {
+        setError('Deriv authorization could not be verified. Please start again.')
+        return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        const safeParams = Object.fromEntries(
+          Array.from(params.entries()).map(([key, value]) => [
+            key,
+            key.toLowerCase().includes('token') ? '[redacted]' : value,
+          ])
+        )
+        console.info('[OAuth Callback] Query parameters:', safeParams)
+      }
+
+      const derivError = params.get('error')
+      if (derivError) {
+        const description = params.get('error_description')
+        setError(description ? `Deriv authorization failed: ${description}` : `Deriv authorization failed: ${derivError}`)
+        return
+      }
+
       // 1. Extract all accounts from query params (acct1, token1, cur1, acct2, token2, cur2...)
       const accountsList: DerivAccountItem[] = []
       let idx = 1
@@ -91,36 +121,12 @@ function CallbackContent() {
           isConnected: true,
         })
 
-        setStatusMessage('Authorized successfully! Redirecting to your RangerTrader dashboard...')
+        setStatusMessage('Authorized successfully! Redirecting to your SniperTraders dashboard...')
         const timer = setTimeout(() => router.replace('/dashboard'), 600)
         return () => clearTimeout(timer)
       } catch (err) {
-        console.warn('[OAuth Callback] Direct WS authorize had an issue, falling back to local session store:', err)
-        // Fallback: save session even if live WS had a momentary hiccup so user is logged in
-        const fallbackSession: DerivSession = {
-          account: primaryAccount.account,
-          token: primaryAccount.token,
-          createdAt: new Date().toISOString(),
-          loginid: primaryAccount.account,
-          balance: 10000,
-          currency: primaryAccount.currency,
-          is_virtual: primaryAccount.isVirtual,
-          accounts: accountsList,
-        }
-
-        saveDerivSession(fallbackSession)
-        setAccount({
-          loginid: primaryAccount.account,
-          token: primaryAccount.token,
-          balance: 10000,
-          currency: primaryAccount.currency,
-          isVirtual: primaryAccount.isVirtual,
-          accounts: accountsList,
-          isConnected: true,
-        })
-
-        const timer = setTimeout(() => router.replace('/dashboard'), 800)
-        return () => clearTimeout(timer)
+        console.warn('[OAuth Callback] Direct WS authorize failed:', err)
+        setError('Deriv authorization could not be completed. Please try again.')
       }
     }
 
@@ -149,7 +155,7 @@ function CallbackContent() {
             <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
               <Loader2 className="w-7 h-7 text-primary animate-spin" />
             </div>
-            <h1 className="text-xl font-bold text-white">Connecting RangerTrader</h1>
+            <h1 className="text-xl font-bold text-white">Connecting SniperTraders</h1>
             <p className="text-muted-foreground text-sm mt-2 leading-relaxed">{statusMessage}</p>
             <div className="mt-6 flex justify-center gap-1.5">
               {[0, 1, 2].map((i) => (

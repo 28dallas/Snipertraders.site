@@ -1,8 +1,8 @@
-# RangerTrader
+# SniperTraders
 
 **Direct-Execution Deriv Trading Companion**
 
-RangerTrader is a web-based trading execution suite built for Deriv traders. It provides direct, non-custodial access to Deriv's WebSocket API for manual trading, automated strategy runs, bot creation, digit analysis, and portfolio reporting.
+SniperTraders is a web-based trading execution suite built for Deriv traders. It provides direct, non-custodial access to Deriv's WebSocket API for manual trading, automated strategy runs, bot creation, digit analysis, and portfolio reporting.
 
 ## Key Features
 
@@ -27,9 +27,11 @@ RangerTrader is a web-based trading execution suite built for Deriv traders. It 
 
 1. Set your Deriv App ID in `.env.local`:
    ```bash
-   NEXT_PUBLIC_DERIV_APP_ID=1089 # Or your registered Deriv App ID
+   NEXT_PUBLIC_DERIV_APP_ID=your_registered_deriv_app_id
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
+
+   App ID `1089` is available only as a local development fallback. Production requires an app ID registered to the deployed callback URL.
 
 2. Install dependencies and start the dev server:
    ```bash
