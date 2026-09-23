@@ -1,244 +1,221 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
-  Menu, X, LayoutDashboard, Wrench, Gift, BarChart2,
-  TrendingUp, Cpu, Zap, Target, LineChart, Copy, Bolt,
-  BookOpen, GraduationCap, Calculator, Scale
+  Menu, X, LayoutDashboard, Wrench, Gift,
+  TrendingUp, Cpu, Zap, Layers, LineChart, Bolt,
+  BookOpen, Calculator, DollarSign, ArrowUpRight, LogOut
 } from 'lucide-react'
-import { DERIV_AFFILIATE_LINK, TELEGRAM_URL, WHATSAPP_URL } from '@/lib/constants'
-import { getDerivSession } from '@/lib/deriv-session'
+import { DERIV_CASHIER_DEPOSIT_URL, TELEGRAM_URL, WHATSAPP_URL } from '@/lib/constants'
+import { getDerivSession, clearDerivSession, DerivSession } from '@/lib/deriv-session'
+import { useTradingStore } from '@/stores/trading-store'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
 
-const NAV_ITEMS = [
+const MAIN_NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Bot Builder', href: '/dashboard/bot-builder', icon: Wrench },
-  { label: 'Free Bots', href: '/bots', icon: Gift },
-  { label: 'Analysis', href: '/dashboard/analysis', icon: BarChart2 },
   { label: 'D-Trader', href: '/dashboard/d-trader', icon: TrendingUp },
-  { label: 'Smart Analysis', href: '/dashboard/smart-analysis', icon: Cpu },
-  { label: 'Signals', href: '/dashboard/signals', icon: Zap },
-  { label: 'Matches', href: '/dashboard/matches', icon: Target },
+  { label: 'Bot Builder', href: '/dashboard/bot-builder', icon: Wrench },
+  { label: 'Auto Trader', href: '/dashboard/auto-trader', icon: Cpu },
+  { label: 'Free Bots', href: '/dashboard/my-bots', icon: Gift },
+  { label: 'Bulk Trader', href: '/dashboard/bulk-trader', icon: Layers },
   { label: 'Charts', href: '/dashboard/charts', icon: LineChart },
-  { label: 'Copy Trading', href: '/dashboard/copy-trading', icon: Copy },
+  { label: 'Smart Analysis', href: '/dashboard/smart-analysis', icon: Zap },
   { label: 'Speedbot', href: '/dashboard/speedbot', icon: Bolt },
-]
-
-const LEARN_ITEMS = [
-  { label: 'Learn Deriv', href: '/learn', icon: BookOpen },
-  { label: 'Strategies', href: '/strategies', icon: GraduationCap },
-  { label: 'Tools', href: '/tools/risk-calculator', icon: Calculator },
-  { label: 'Comparisons', href: '/comparisons', icon: Scale },
+  { label: 'Strategy Pro', href: '/dashboard/strategy-pro', icon: BookOpen },
+  { label: 'AI Software', href: '/dashboard/ai-software', icon: Cpu },
+  { label: 'Reports', href: '/dashboard/reports', icon: LineChart },
 ]
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
-  const [isConnected, setIsConnected] = useState(false)
   const pathname = usePathname()
+  const { loginid, balance, currency, isVirtual, isConnected, initFromSession, logout } = useTradingStore()
 
   useEffect(() => {
-    setIsConnected(!!getDerivSession())
-  }, [])
+    initFromSession()
+  }, [initFromSession])
 
-  const lockedClassName = 'cursor-not-allowed opacity-50'
+  const handleLogout = () => {
+    logout()
+    clearDerivSession()
+    window.location.href = '/'
+  }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0e2e] border-b border-[#1a2060]">
-      {/* Top bar: Logo + Auth buttons */}
-      <div className="flex items-center justify-between px-4 sm:px-6 h-14 border-b border-[#1a2060]">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0e1a]/95 backdrop-blur-md border-b border-[#1e2a40]">
+      {/* Top bar: Brand + Session Status + Quick Actions */}
+      <div className="flex items-center justify-between px-4 sm:px-6 h-14 border-b border-[#1e2a40]">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 leading-tight">
-          <Image
-            src="/img/Free Trading Signals 20260902_133854.jpg"
-            alt="SmartTraders logo"
-            width={34}
-            height={34}
-            className="h-[34px] w-[34px] rounded-lg border border-[#2a3080] object-contain"
-          />
+        <Link href="/" className="flex items-center gap-2.5 leading-tight group">
+          <div className="w-8 h-8 rounded-xl bg-[#121829] border border-[#1e2a40] p-1 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+            <Image
+              src="/img/ranger-logo.svg"
+              alt="RangerTrader logo"
+              width={26}
+              height={26}
+              className="w-full h-full object-contain"
+            />
+          </div>
           <span className="flex flex-col">
-            <span className="text-white font-bold text-base tracking-wide">SmartTraders</span>
-            <span className="text-xs" style={{ color: '#aaa' }}>
-              powered by{' '}
-              <span className="font-bold italic" style={{ color: '#ff444f' }}>Deriv</span>
+            <span className="text-white font-extrabold text-base tracking-wide flex items-center gap-1">
+              Ranger<span className="text-primary">Trader</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              direct deriv companion
             </span>
           </span>
         </Link>
 
-        {/* Right: auth buttons + mobile toggle */}
-        <div className="flex items-center gap-2">
-          {/* Telegram-style green dot */}
-          <div className="hidden sm:flex items-center gap-1.5 mr-1">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
+        {/* Right side: Account Info / Auth Buttons */}
+        <div className="flex items-center gap-2.5">
+          {isConnected && loginid ? (
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Account details pill */}
+              <div className="flex items-center gap-2 bg-[#121829] border border-[#1e2a40] rounded-xl px-3 py-1.5 text-xs">
+                <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
+                <span className="font-mono text-white font-semibold">{loginid}</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold font-mono ${isVirtual ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-profit/20 text-profit border border-profit/30'}`}>
+                  {isVirtual ? 'DEMO' : 'REAL'}
+                </span>
+                {balance !== null && (
+                  <span className="font-mono font-bold text-primary pl-1 border-l border-border">
+                    {currency} {balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+
+              {/* Cashier deep-link */}
+              <a
+                href={DERIV_CASHIER_DEPOSIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-profit/15 text-profit border border-profit/30 text-xs font-bold hover:bg-profit/25 transition-all"
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                Deposit
+                <ArrowUpRight className="w-3 h-3" />
+              </a>
+
+              {/* Disconnect button */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors"
+                title="Disconnect account"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center gap-2">
+              <DerivConnectButton className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-black text-xs font-bold gradient-ranger shadow-glow-sm hover:scale-[1.02] transition-all">
+                Connect Deriv
+              </DerivConnectButton>
+            </div>
+          )}
+
+          {/* Social Links */}
+          <div className="hidden md:flex items-center gap-1 pl-2 border-l border-[#1e2a40]">
+            <a
+              href={TELEGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Telegram"
+              className="p-1.5 rounded-lg text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15.75-.75 4.35-1.06 6.03-.13.71-.39.95-.64.97-.56.05-1.03-.38-1.57-.74-.85-.56-1.33-.9-2.16-1.45-.96-.64-.34-.99.21-1.56.14-.15 2.65-2.42 2.7-2.63.01-.03.01-.14-.05-.2-.06-.06-.15-.04-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.91-1.27 4.85-2.11 5.83-2.52 2.77-1.17 3.35-1.38 3.73-1.38.08 0 .27.02.39.12.1.08.13.19.14.28.01.07.01.21 0 .28z" />
+              </svg>
+            </a>
           </div>
-
-          {/* Telegram Button */}
-          <a
-            href={TELEGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Join Telegram"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-white text-xs font-semibold border border-[#0088cc]/30 transition-all hover:bg-[#0088cc]/15"
-          >
-            <svg className="w-4 h-4 fill-current text-[#0088cc] shrink-0" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15.75-.75 4.35-1.06 6.03-.13.71-.39.95-.64.97-.56.05-1.03-.38-1.57-.74-.85-.56-1.33-.9-2.16-1.45-.96-.64-.34-.99.21-1.56.14-.15 2.65-2.42 2.7-2.63.01-.03.01-.14-.05-.2-.06-.06-.15-.04-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.91-1.27 4.85-2.11 5.83-2.52 2.77-1.17 3.35-1.38 3.73-1.38.08 0 .27.02.39.12.1.08.13.19.14.28.01.07.01.21 0 .28z" />
-            </svg>
-            <span className="hidden sm:inline">Join Telegram</span>
-          </a>
-
-          {/* WhatsApp Button */}
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Join WhatsApp"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-white text-xs font-semibold transition-all hover:bg-[#25d366]/10"
-          >
-            <svg className="w-4 h-4 fill-current text-[#25d366] shrink-0" viewBox="0 0 24 24">
-              <path d="M12.004 2C6.48 2 2.008 6.48 2.008 12c0 1.91.54 3.7 1.48 5.23L2.008 22l4.9-1.29c1.47.8 3.14 1.29 4.93 1.29 5.52 0 10-4.48 10-10S17.526 2 12.004 2zm5.72 13.91c-.24.68-1.21 1.25-1.81 1.33-.51.07-1.18.1-3.38-.82-2.82-1.17-4.6-4.03-4.74-4.22-.14-.19-1.12-1.49-1.12-2.84 0-1.35.7-2.01.95-2.28.25-.27.54-.34.72-.34.18 0 .36 0 .51.01.16.01.37-.06.58.45.21.52.73 1.79.79 1.92.06.13.1.28.01.45-.09.18-.14.28-.28.45-.14.17-.3.38-.43.51-.15.15-.31.32-.13.63.18.3.8 1.32 1.72 2.14.92.82 1.7-1.08 1.7-1.08.18-.32.4-.26.63-.15.22.11 1.42.67 1.66.79.24.12.4.18.46.28.06.1.06.58-.18 1.26z" />
-            </svg>
-            <span className="hidden sm:inline">Join WhatsApp</span>
-          </a>
-
-          <div className="hidden sm:block"><DerivConnectButton className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded text-white text-sm font-medium border border-[#2a3080] hover:bg-[#1a2060] transition-all">Connect Deriv</DerivConnectButton></div>
-          <a
-            href={DERIV_AFFILIATE_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center px-4 py-1.5 rounded text-black text-sm font-semibold bg-[#00c853] hover:bg-[#00e676] transition-all"
-          >
-            Sign up
-          </a>
 
           {/* Mobile hamburger */}
           <button
-            className="sm:hidden text-white p-2 rounded hover:bg-white/10 transition-all"
+            className="sm:hidden text-white p-2 rounded-lg hover:bg-white/10 transition-all"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle menu"
           >
             {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-{/* Bottom bar: Nav items */}
-      <div className="hidden sm:flex items-center gap-0 px-2 h-10 overflow-x-auto scrollbar-hide bg-[#0d1235]">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      {/* Bottom Horizontal Nav Strip: Fast access to trading tools */}
+      <div className="hidden sm:flex items-center gap-0 px-3 h-10 overflow-x-auto scrollbar-hide bg-[#0c1220]">
+        {MAIN_NAV.map(({ label, href, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
-            isConnected ? (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium whitespace-nowrap transition-all border-b-2 ${
-                  active
-                    ? 'text-white border-primary bg-white/5'
-                    : 'text-[#8899cc] border-transparent hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                {label}
-              </Link>
-            ) : (
-              <span key={href} className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium whitespace-nowrap border-b-2 border-transparent text-[#8899cc] ${lockedClassName}`} aria-disabled="true" title="Connect your Deriv account first">
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                {label}
-              </span>
-            )
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium whitespace-nowrap transition-all border-b-2 ${
+                active
+                  ? 'text-primary border-primary bg-primary/10'
+                  : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              {label}
+            </Link>
           )
         })}
-        <div className="mx-1 h-5 w-px bg-[#2a3080] shrink-0" />
-        {LEARN_ITEMS.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
-          return (
-            isConnected ? (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium whitespace-nowrap transition-all border-b-2 ${
-                  active
-                    ? 'text-primary border-primary bg-primary/5'
-                    : 'text-[#8899cc] border-transparent hover:text-primary hover:bg-primary/5'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                {label}
-              </Link>
-            ) : (
-              <span key={href} className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium whitespace-nowrap border-b-2 border-transparent text-[#8899cc] ${lockedClassName}`} aria-disabled="true" title="Connect your Deriv account first">
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                {label}
-              </span>
-            )
-          )
-        })}
+
+        <div className="mx-2 h-4 w-px bg-border shrink-0" />
+
+        <Link
+          href="/tools/risk-calculator"
+          className="flex items-center gap-1 px-3 h-full text-xs font-medium text-slate-400 hover:text-primary transition-colors whitespace-nowrap"
+        >
+          <Calculator className="w-3.5 h-3.5" />
+          Risk Calc
+        </Link>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Menu Dropdown */}
       {isOpen && (
-        <div className="sm:hidden bg-[#0a0e2e] border-t border-[#1a2060]">
-          <div className="px-3 py-3 space-y-0.5">
-            {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
-              const active = pathname === href
-              return (
-                isConnected ? (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      active ? 'bg-primary/15 text-primary' : 'text-[#8899cc] hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {label}
-                  </Link>
-                ) : (
-                  <span key={href} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8899cc] ${lockedClassName}`} aria-disabled="true" title="Connect your Deriv account first">
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {label}
-                  </span>
-                )
-              )
-})}
-            <div className="pt-3 flex flex-col gap-2 border-t border-[#1a2060] mt-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#8899cc] px-3 pt-1">Learn</div>
-              {LEARN_ITEMS.map(({ label, href, icon: Icon }) => {
-                const active = pathname === href
-                return (
-                  isConnected ? (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        active ? 'bg-primary/15 text-primary' : 'text-[#8899cc] hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {label}
-                    </Link>
-                  ) : (
-                    <span key={href} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-[#8899cc] ${lockedClassName}`} aria-disabled="true" title="Connect your Deriv account first">
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {label}
-                    </span>
-                  )
-                )
-              })}
+        <div className="sm:hidden bg-[#0d1424] border-t border-[#1e2a40] p-4 max-h-[80vh] overflow-y-auto space-y-2">
+          {isConnected && loginid && (
+            <div className="p-3 rounded-xl bg-surface border border-border text-xs mb-3 space-y-1">
+              <div className="text-muted-foreground">Connected Account:</div>
+              <div className="font-mono text-white font-bold flex items-center justify-between">
+                <span>{loginid} ({isVirtual ? 'Demo' : 'Real'})</span>
+                {balance !== null && <span className="text-primary">{currency} {balance.toFixed(2)}</span>}
+              </div>
             </div>
-            <div className="pt-3 flex flex-col gap-2 border-t border-[#1a2060] mt-2">
-              <Link href="/auth/login" onClick={() => setIsOpen(false)} className="text-center py-2 rounded border border-[#2a3080] text-white text-sm hover:bg-[#1a2060] transition-all">Log in</Link>
-              <a
-                href={DERIV_AFFILIATE_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
+          )}
+
+          <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 pt-1">Trading Tools</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {MAIN_NAV.map(({ label, href, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
                 onClick={() => setIsOpen(false)}
-                className="text-center py-2 rounded bg-[#00c853] text-black text-sm font-semibold hover:bg-[#00e676] transition-all"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-surface/60 hover:bg-surface border border-border text-xs font-medium text-slate-200"
               >
-                Sign up
-              </a>
-            </div>
+                <Icon className="w-3.5 h-3.5 text-primary" />
+                <span className="truncate">{label}</span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-border flex flex-col gap-2">
+            {!isConnected ? (
+              <DerivConnectButton className="w-full py-2.5 rounded-xl text-center text-xs font-bold text-black gradient-ranger">
+                Connect Deriv Account
+              </DerivConnectButton>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full py-2.5 rounded-xl text-center text-xs font-semibold text-danger border border-danger/30 hover:bg-danger/10"
+              >
+                Disconnect Account
+              </button>
+            )}
           </div>
         </div>
       )}

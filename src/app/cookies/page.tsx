@@ -42,7 +42,7 @@ export default function CookiesPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 space-y-8">
         <div className="bg-card border border-border rounded-xl p-5">
           <p className="text-muted-foreground text-sm leading-relaxed">
-            SmartTraders uses cookies and similar storage technologies to keep you logged in, remember your preferences, and understand how the platform is used. This policy explains what we use, why, and how you can control it.
+            RangerTrader uses cookies and local browser storage to keep you connected to Deriv, remember your trading layout preferences, and ensure optimal performance. This policy explains what we use and how you can manage it.
           </p>
         </div>
 

@@ -19,7 +19,7 @@ const FULL_CONTENT: Record<string, string[]> = {
     '## Risk Management\nRegardless of strategy, always set a stop loss of 20-30% of your daily budget. Never chase losses with oversized stakes. The best traders are consistent, not aggressive.',
   ],
   'build-first-deriv-bot': [
-    'Building your first Deriv bot used to require knowledge of XML and the DBot platform. With SmartTraders\' no-code builder, you can create a fully functional bot in under 10 minutes.',
+    'Building your first Deriv bot used to require knowledge of XML and the DBot platform. With RangerTrader\'s no-code builder, you can create a fully functional bot in under 10 minutes.',
     '## Step 1: Choose Your Market\nStart with Volatility 10 Index — it has the lowest volatility and is most predictable for beginners. Avoid Crash/Boom markets until you have experience.',
     '## Step 2: Select a Strategy\nFor beginners, Over/Under is the safest starting point. Set the barrier to 5 (over or under) for a near 50/50 chance.',
     '## Step 3: Set Your Stake\nStart with the minimum stake ($0.35 on Deriv). Never risk more than 1-2% of your account on a single trade.',

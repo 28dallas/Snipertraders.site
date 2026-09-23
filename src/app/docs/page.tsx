@@ -1,7 +1,8 @@
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { BookOpen, Key, Bot, Copy, Bell, BarChart2, Wallet, ChevronRight } from 'lucide-react'
+import { BookOpen, Key, Bot, Copy, Bell, BarChart2, Wallet, ChevronRight, Zap } from 'lucide-react'
 import Link from 'next/link'
+import DerivConnectButton from '@/components/shared/DerivConnectButton'
 
 const SECTIONS = [
   {
@@ -10,78 +11,75 @@ const SECTIONS = [
     color: 'text-primary',
     bg: 'bg-primary/10',
     articles: [
-      { title: 'Create your SmartTraders account', href: '/auth/signup' },
+      { title: 'Connect your Deriv account (OAuth)', href: '/auth/deriv' },
       { title: 'Understanding your dashboard', href: '/dashboard' },
-      { title: 'Setting up Telegram alerts', href: '/dashboard/alerts' },
+      { title: 'Virtual vs Real trading modes', href: '/dashboard/wallet' },
     ],
   },
   {
     icon: Bot,
-    title: 'Bot Builder & Free Bots',
+    title: 'Bot Builder & Automation',
     color: 'text-blue-400',
     bg: 'bg-blue-400/10',
     articles: [
-      { title: 'How to load a free bot', href: '/bots' },
-      { title: 'Using the no-code bot builder', href: '/dashboard/bot-builder' },
-      { title: 'Quick strategy setup guide', href: '/dashboard/bot-builder' },
-      { title: 'Managing your active bots', href: '/dashboard/my-bots' },
+      { title: 'Free bots catalog & deployment', href: '/dashboard/my-bots' },
+      { title: 'Continuous Auto Trader engine', href: '/dashboard/auto-trader' },
+      { title: 'Bulk Trader parallel execution', href: '/dashboard/bulk-trader' },
+      { title: 'No-code bot builder workshop', href: '/dashboard/bot-builder' },
     ],
   },
   {
-    icon: Copy,
-    title: 'Copy Trading',
-    color: 'text-success',
-    bg: 'bg-success/10',
+    icon: Zap,
+    title: 'Execution & Strategies',
+    color: 'text-accent',
+    bg: 'bg-accent/10',
     articles: [
-      { title: 'How copy trading works on SmartTraders', href: '/copy-trading' },
-      { title: 'Choosing the right trader to copy', href: '/copy-trading' },
-      { title: 'Setting stake size and risk limits', href: '/dashboard/copy-trading' },
-      { title: 'Stopping a copy subscription', href: '/dashboard/copy-trading' },
+      { title: 'D-Trader single-click manual execution', href: '/dashboard/d-trader' },
+      { title: 'Strategy Pro institutional models', href: '/dashboard/strategy-pro' },
+      { title: 'AI Software parameter optimizer', href: '/dashboard/ai-software' },
+      { title: 'Speedbot high-frequency runner', href: '/dashboard/speedbot' },
     ],
   },
   {
     icon: BarChart2,
-    title: 'Analysis Tools',
-    color: 'text-accent',
-    bg: 'bg-accent/10',
+    title: 'Analysis & Real-time Data',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-400/10',
     articles: [
-      { title: 'Using the Analysis Tool (Even/Odd, Over/Under)', href: '/dashboard/analysis' },
-      { title: 'Smart Analysis and LDP prediction', href: '/dashboard/smart-analysis' },
-      { title: 'Reading the live charts', href: '/dashboard/charts' },
-      { title: 'Understanding pattern matches', href: '/dashboard/matches' },
+      { title: 'Smart Analysis & last digit statistics', href: '/dashboard/smart-analysis' },
+      { title: 'Real-time WebSocket tick charts', href: '/dashboard/charts' },
+      { title: 'Audit reports & transaction ledger', href: '/dashboard/reports' },
     ],
   },
   {
-    icon: Bell,
-    title: 'Signals & Alerts',
-    color: 'text-gold',
-    bg: 'bg-gold/10',
+    icon: Copy,
+    title: 'Copy Trading Strategies',
+    color: 'text-teal-400',
+    bg: 'bg-teal-400/10',
     articles: [
-      { title: 'How trading signals are generated', href: '/dashboard/signals' },
-      { title: 'Connecting Telegram for alerts', href: '/dashboard/alerts' },
-      { title: 'Configuring alert preferences', href: '/dashboard/alerts' },
-      { title: 'Using Speedbot for automated signals', href: '/dashboard/speedbot' },
+      { title: 'How copy trading works on RangerTrader', href: '/dashboard/copy-trading' },
+      { title: 'Reviewing strategy risk & strike rate', href: '/dashboard/copy-trading' },
+      { title: 'Deploying strategy to Auto Trader', href: '/dashboard/auto-trader' },
     ],
   },
   {
     icon: Wallet,
-    title: 'Payments & Billing',
+    title: 'Deriv Cashier & Wallet',
     color: 'text-warning',
     bg: 'bg-warning/10',
     articles: [
-      { title: 'How to pay with M-Pesa', href: '/dashboard/wallet' },
-      { title: 'Upgrading your plan', href: '/pricing' },
-      { title: 'Cancelling your subscription', href: '/dashboard/wallet' },
-      { title: 'Payment not activating — what to do', href: '/dashboard/support' },
+      { title: 'Official Deriv Cashier deposit/withdrawal', href: '/dashboard/wallet' },
+      { title: 'Account balance & statement auditing', href: '/dashboard/reports' },
+      { title: 'Risk management & position sizing', href: '/tools/risk-calculator' },
     ],
   },
 ]
 
 const QUICK_STEPS = [
-  { step: '1', title: 'Create account', desc: 'Sign up free — no card required' },
-  { step: '2', title: 'Connect Deriv', desc: 'Add your API token from deriv.com' },
-  { step: '3', title: 'Load a bot', desc: 'Pick from 50+ free bots or build your own' },
-  { step: '4', title: 'Enable alerts', desc: 'Connect Telegram for trade notifications' },
+  { step: '1', title: 'One-Click Connect', desc: 'Securely link Deriv via OAuth' },
+  { step: '2', title: 'Choose Market', desc: 'Volatility indices, Boom/Crash, Step' },
+  { step: '3', title: 'Pick Tool or Bot', desc: 'D-Trader, Auto Trader, or Strategy Pro' },
+  { step: '4', title: 'Execute Safely', desc: 'Client-side WebSocket non-custodial' },
 ]
 
 export default function DocsPage() {
@@ -96,10 +94,10 @@ export default function DocsPage() {
             Documentation
           </span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
-            How to Use <span className="gradient-text">SmartTraders</span>
+            How to Use <span className="gradient-text">RangerTrader</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Everything you need to set up, trade, and grow — from first login to advanced automation.
+            Direct Deriv execution companion — live WebSockets, automated strategies, and institutional trading tools.
           </p>
         </div>
       </section>
@@ -117,10 +115,8 @@ export default function DocsPage() {
               </div>
             ))}
           </div>
-          <div className="text-center mt-8">
-            <Link href="/auth/signup" className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-black font-semibold rounded-xl hover:opacity-90 transition-all">
-              Get Started Free <ChevronRight className="w-4 h-4" />
-            </Link>
+          <div className="text-center mt-8 flex justify-center">
+            <DerivConnectButton label="Start Trading Now" />
           </div>
         </div>
       </section>
@@ -150,15 +146,15 @@ export default function DocsPage() {
 
         <div className="mt-10 bg-card border border-border rounded-2xl p-8 text-center">
           <BookOpen className="w-10 h-10 text-primary mx-auto mb-4" />
-          <h3 className="text-white font-bold text-lg mb-2">Can&apos;t find what you need?</h3>
-          <p className="text-muted-foreground text-sm mb-5">Our support team is available on Telegram and in the dashboard support center.</p>
+          <h3 className="text-white font-bold text-lg mb-2">Need assistance with your setup?</h3>
+          <p className="text-muted-foreground text-sm mb-5">Our community and technical documentation channels are open 24/7.</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/dashboard/support" className="px-5 py-2.5 bg-primary text-black font-semibold rounded-xl hover:opacity-90 transition-all text-sm">
-              Open Support Center
+            <Link href="/dashboard" className="px-5 py-2.5 bg-primary text-black font-semibold rounded-xl hover:opacity-90 transition-all text-sm">
+              Open Trading Dashboard
             </Link>
-            <a href="https://t.me/pipsdollarprinter" target="_blank" rel="noopener noreferrer"
+            <a href="https://t.me/rangertrader" target="_blank" rel="noopener noreferrer"
               className="px-5 py-2.5 border border-border text-white font-semibold rounded-xl hover:border-primary/40 hover:bg-white/5 transition-all text-sm">
-              Ask on Telegram
+              Community Telegram
             </a>
           </div>
         </div>

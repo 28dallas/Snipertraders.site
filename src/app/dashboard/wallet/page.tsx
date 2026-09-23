@@ -1,173 +1,251 @@
 'use client'
-import { useState } from 'react'
-import { Smartphone, CreditCard, CheckCircle, Clock, Zap } from 'lucide-react'
-import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
-import Badge from '@/components/ui/Badge'
 
-const PAYMENT_HISTORY = [
-  { id: 'MP001', date: '2024-01-15', amount: 2500, method: 'M-Pesa', ref: 'QHX7K9P2L1', status: 'completed', plan: 'Pro' },
-  { id: 'MP002', date: '2023-12-15', amount: 2500, method: 'M-Pesa', ref: 'RJY8M3Q4N2', status: 'completed', plan: 'Pro' },
-  { id: 'MP003', date: '2023-11-15', amount: 2500, method: 'M-Pesa', ref: 'SKZ9N4R5O3', status: 'completed', plan: 'Pro' },
-]
+import { useEffect, useState } from 'react'
+import {
+  Wallet, DollarSign, ArrowUpRight, ShieldCheck, RefreshCw,
+  CreditCard, Landmark, Coins, ArrowRightLeft, FileText
+} from 'lucide-react'
+import Card from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import { useTradingStore } from '@/stores/trading-store'
+import { derivWS } from '@/lib/deriv-websocket'
+import {
+  DERIV_CASHIER_DEPOSIT_URL,
+  DERIV_CASHIER_WITHDRAW_URL,
+  DERIV_CASHIER_TRANSFER_URL,
+} from '@/lib/constants'
 
 export default function WalletPage() {
-  const [phone, setPhone] = useState('0712345678')
-  const [paying, setPaying] = useState(false)
-  const [paymentStep, setPaymentStep] = useState<'idle' | 'waiting' | 'success'>('idle')
-  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'elite'>('pro')
+  const { loginid, balance, currency, isVirtual, isConnected } = useTradingStore()
+  const [statementRows, setStatementRows] = useState<any[]>([])
+  const [loadingStatement, setLoadingStatement] = useState(false)
 
-  const handleMpesaPay = async () => {
-    setPaying(true)
-    setPaymentStep('waiting')
-    // Simulate STK push
-    setTimeout(() => {
-      setPaymentStep('success')
-      setPaying(false)
-    }, 5000)
-  }
+  useEffect(() => {
+    if (isConnected) {
+      setLoadingStatement(true)
+      derivWS
+        .statement({ limit: 15 })
+        .then((res: any) => {
+          const txs = res?.statement?.transactions
+          if (Array.isArray(txs)) {
+            setStatementRows(txs)
+          }
+        })
+        .catch((err) => {
+          console.warn('[Wallet] Statement fetch error:', err.message)
+        })
+        .finally(() => {
+          setLoadingStatement(false)
+        })
+    }
+  }, [isConnected])
+
+  const cashierLinks = [
+    {
+      title: 'Deposit Funds',
+      desc: 'Credit cards, crypto, e-wallets, and regional payment agents',
+      url: DERIV_CASHIER_DEPOSIT_URL,
+      icon: DollarSign,
+      color: 'text-profit',
+      bg: 'bg-profit/10',
+      actionText: 'Open Deriv Deposit',
+      primary: true,
+    },
+    {
+      title: 'Withdraw Funds',
+      desc: 'Cash out directly to your bank, crypto wallet, or payment agent',
+      url: DERIV_CASHIER_WITHDRAW_URL,
+      icon: Landmark,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      actionText: 'Open Deriv Withdrawal',
+      primary: false,
+    },
+    {
+      title: 'Payment Agents',
+      desc: 'Local currency deposits & withdrawals via verified Deriv agents',
+      url: 'https://app.deriv.com/cashier/payment-agent',
+      icon: CreditCard,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-400/10',
+      actionText: 'Find Payment Agent',
+      primary: false,
+    },
+    {
+      title: 'Account Transfer',
+      desc: 'Transfer balances between Deriv CFD, MT5, and synthetic accounts',
+      url: DERIV_CASHIER_TRANSFER_URL,
+      icon: ArrowRightLeft,
+      color: 'text-purple-400',
+      bg: 'bg-purple-400/10',
+      actionText: 'Transfer Balances',
+      primary: false,
+    },
+  ]
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Wallet & Billing</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your subscription and payment history</p>
+        <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+          <Wallet className="w-6 h-6 text-primary" />
+          Wallet & Deriv Cashier
+        </h1>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+          Direct non-custodial gateway to Deriv official deposit, withdrawal, and balance services
+        </p>
       </div>
 
-      {/* Current plan */}
-      <Card className="border-primary/30 bg-primary/5">
+      {/* Account Balance Card */}
+      <Card className="p-6 bg-gradient-to-r from-[#0d1424] via-[#121829] to-[#0d1424] border-[#1e2a40] shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary" />
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                Current Trading Balance
+              </span>
+              <Badge variant={isVirtual ? 'yellow' : 'green'}>
+                {isVirtual ? 'VIRTUAL DEMO' : 'LIVE REAL'}
+              </Badge>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold">Pro Plan</span>
-                <Badge variant="green">Active</Badge>
-              </div>
-              <p className="text-muted-foreground text-xs mt-0.5">Renews on Feb 15, 2024 · KES 2,500/month</p>
+            <div className="text-3xl sm:text-4xl font-black font-mono text-white tracking-tight">
+              {currency}{' '}
+              {balance !== null
+                ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : '10,000.00'}
+            </div>
+            <div className="text-xs text-muted-foreground font-mono mt-1">
+              Account ID: <strong className="text-slate-200">{loginid || 'VRTC_DEMO'}</strong>
             </div>
           </div>
-          <Button variant="outline" size="sm">Upgrade to Elite</Button>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={DERIV_CASHIER_DEPOSIT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-profit text-black font-extrabold text-xs sm:text-sm hover:bg-profit/90 transition-all shadow-glow-sm"
+            >
+              Deposit Funds
+              <ArrowUpRight className="w-4 h-4" />
+            </a>
+            <a
+              href={DERIV_CASHIER_WITHDRAW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-surface border border-border hover:bg-white/5 text-slate-200 font-semibold text-xs sm:text-sm transition-all"
+            >
+              Withdraw
+              <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+            </a>
+          </div>
         </div>
       </Card>
 
-      {/* M-Pesa payment */}
-      <Card>
-        <h2 className="text-white font-bold text-lg mb-5 flex items-center gap-2">
-          <Smartphone className="w-5 h-5 text-success" />
-          Pay via M-Pesa
-        </h2>
+      {/* Cashier Direct Action Cards */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cashierLinks.map((item) => {
+          const Icon = item.icon
+          return (
+            <div
+              key={item.title}
+              className="p-5 rounded-2xl bg-[#0d1424] border border-[#1e2a40] hover:border-primary/40 flex flex-col justify-between transition-all group"
+            >
+              <div>
+                <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
+                  <Icon className={`w-5 h-5 ${item.color}`} />
+                </div>
+                <h3 className="text-white font-bold text-sm mb-1">{item.title}</h3>
+                <p className="text-muted-foreground text-xs leading-relaxed mb-4">
+                  {item.desc}
+                </p>
+              </div>
 
-        {paymentStep === 'success' ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-success" />
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  item.primary
+                    ? 'bg-primary text-black hover:opacity-90 shadow-glow-sm'
+                    : 'bg-surface text-slate-300 hover:text-white border border-border hover:bg-white/5'
+                }`}
+              >
+                <span>{item.actionText}</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </a>
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">Payment Successful!</h3>
-            <p className="text-muted-foreground text-sm">Your subscription has been activated.</p>
-            <Button variant="primary" className="mt-6" onClick={() => setPaymentStep('idle')}>Done</Button>
+          )
+        })}
+      </div>
+
+      {/* Non-Custodial Guarantee Banner */}
+      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+        <div className="text-xs text-slate-300 leading-relaxed">
+          <strong className="text-white font-semibold block mb-0.5">Non-Custodial Guarantee:</strong>
+          All transactions are executed exclusively through Deriv&apos;s regulated cashier gateway. RangerTrader never processes, handles, or stores payment credentials or customer funds.
+        </div>
+      </div>
+
+      {/* Real-time Account Statement Ledger */}
+      <Card className="p-5 bg-[#0d1424] border-[#1e2a40]">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-white font-bold text-sm">Recent Account Statement</h3>
+            <p className="text-muted-foreground text-xs">Official transaction ledger synced from Deriv API</p>
           </div>
-        ) : paymentStep === 'waiting' ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-full bg-warning/20 flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <Smartphone className="w-8 h-8 text-warning" />
-            </div>
-            <h3 className="text-white font-bold text-lg mb-2">Waiting for Payment...</h3>
-            <p className="text-muted-foreground text-sm">Check your phone ({phone}) for the M-Pesa prompt.</p>
-            <p className="text-muted-foreground text-xs mt-2">Enter your M-Pesa PIN to complete payment.</p>
-            <div className="flex justify-center gap-1 mt-4">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-warning animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
-              ))}
-            </div>
+          <Badge variant="live">LIVE STATEMENT</Badge>
+        </div>
+
+        {loadingStatement ? (
+          <div className="py-12 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+            Fetching statement records from Deriv...
+          </div>
+        ) : statementRows.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[#1e2a40] text-muted-foreground text-[11px] uppercase">
+                  <th className="py-2.5 px-3">Transaction ID</th>
+                  <th className="py-2.5 px-3">Action</th>
+                  <th className="py-2.5 px-3">Date & Time</th>
+                  <th className="py-2.5 px-3 text-right">Amount</th>
+                  <th className="py-2.5 px-3 text-right">Balance After</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1e2a40]/60 font-mono">
+                {statementRows.map((tx: any) => {
+                  const amt = parseFloat(tx.amount || 0)
+                  const isPositive = amt >= 0
+                  return (
+                    <tr key={tx.transaction_id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-2.5 px-3 text-white font-bold">#{tx.transaction_id}</td>
+                      <td className="py-2.5 px-3 font-sans text-slate-300">{tx.action_type || 'Contract'}</td>
+                      <td className="py-2.5 px-3 text-muted-foreground font-sans text-[11px]">
+                        {tx.transaction_time
+                          ? new Date(tx.transaction_time * 1000).toLocaleString()
+                          : 'Recent'}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${isPositive ? 'text-profit' : 'text-loss'}`}>
+                        {isPositive ? '+' : ''}${amt.toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-slate-300">
+                        ${parseFloat(tx.balance_after || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="space-y-5">
-            {/* Plan selection */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: 'pro', label: 'Pro Plan', price: 'KES 2,500/mo' },
-                { key: 'elite', label: 'Elite Plan', price: 'KES 6,500/mo' },
-              ].map(({ key, label, price }) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedPlan(key as 'pro' | 'elite')}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    selectedPlan === key
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="text-white font-semibold text-sm">{label}</div>
-                  <div className="text-primary font-mono text-sm mt-0.5">{price}</div>
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="text-white text-sm font-medium mb-1.5 block">M-Pesa Phone Number</label>
-              <div className="relative">
-                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0712345678"
-                  className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-primary"
-                />
-              </div>
-              <p className="text-muted-foreground text-xs mt-1.5">Must be a registered Safaricom M-Pesa number</p>
-            </div>
-
-            <div className="bg-background rounded-xl border border-border p-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Plan</span>
-                <span className="text-white">{selectedPlan === 'pro' ? 'Pro' : 'Elite'}</span>
-              </div>
-              <div className="flex justify-between text-sm mb-3">
-                <span className="text-muted-foreground">Amount</span>
-                <span className="text-white font-mono font-bold">KES {selectedPlan === 'pro' ? '2,500' : '6,500'}</span>
-              </div>
-              <div className="border-t border-border pt-3 flex justify-between text-sm">
-                <span className="text-white font-semibold">Total</span>
-                <span className="text-primary font-mono font-bold">KES {selectedPlan === 'pro' ? '2,500' : '6,500'}</span>
-              </div>
-            </div>
-
-            <Button variant="primary" className="w-full" onClick={handleMpesaPay} disabled={paying}>
-              <Smartphone className="w-4 h-4" />
-              Pay KES {selectedPlan === 'pro' ? '2,500' : '6,500'} via M-Pesa
-            </Button>
-
-            <p className="text-center text-muted-foreground text-xs">
-              Also accept: <CreditCard className="w-3 h-3 inline mx-1" />Visa/Mastercard via Stripe
-            </p>
+          <div className="py-12 text-center text-xs text-muted-foreground">
+            <FileText className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+            No historical transactions returned for this session. Use D-Trader or deposit funds to view ledger entries.
           </div>
         )}
-      </Card>
-
-      {/* Payment history */}
-      <Card>
-        <h2 className="text-white font-bold text-lg mb-5">Payment History</h2>
-        <div className="space-y-3">
-          {PAYMENT_HISTORY.map((payment) => (
-            <div key={payment.id} className="flex items-center gap-4 py-3 border-b border-border last:border-0">
-              <div className="w-9 h-9 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
-                <CheckCircle className="w-4 h-4 text-success" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-sm font-medium">{payment.plan} Plan</div>
-                <div className="text-muted-foreground text-xs">{payment.date} · Ref: {payment.ref}</div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-white font-mono text-sm font-bold">KES {payment.amount.toLocaleString()}</div>
-                <Badge variant="green" className="text-xs">{payment.status}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
       </Card>
     </div>
   )

@@ -14,7 +14,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const sessionCookie = request.cookies.get('pips_deriv_session')?.value
+  const sessionCookie =
+    request.cookies.get('ranger_deriv_session')?.value ||
+    request.cookies.get('pips_deriv_session')?.value
 
   if (!sessionCookie) {
     const url = new URL('/', request.url)

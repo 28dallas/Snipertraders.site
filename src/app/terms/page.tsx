@@ -5,51 +5,47 @@ import Link from 'next/link'
 const SECTIONS = [
   {
     title: '1. Acceptance of Terms',
-    body: 'By creating an account or using any part of the SmartTraders platform, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform. These terms apply to all users including free, Pro, and Elite subscribers.',
+    body: 'By connecting your Deriv account or using any part of the RangerTrader companion platform, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.',
   },
   {
-    title: '2. Account Responsibilities',
-    body: 'You are responsible for maintaining the security of your account credentials. You must provide accurate information during registration. You may not share your account with others or use the platform for any unlawful purpose. We reserve the right to suspend accounts that violate these terms.',
+    title: '2. Platform Architecture & Custody',
+    body: 'RangerTrader is a non-custodial software interface. We do not hold deposits, maintain custody of user funds, or execute trades on our own servers. All transactions and authorizations are conducted client-side via Deriv’s official WebSocket gateway using your credentials.',
   },
   {
-    title: '3. Subscription Plans & Billing',
-    body: 'SmartTraders offers Free, Pro (KES 2,500/month), and Elite (KES 6,500/month) plans. Subscriptions are billed monthly. You may cancel at any time from your dashboard — access continues until the end of the current billing period. No refunds are issued for partial months. We reserve the right to change pricing with 30 days notice.',
+    title: '3. Platform Access & Tools',
+    body: 'RangerTrader grants you access to automated trading runners, manual execution tools (D-Trader), analytical dashboards, and institutional strategy templates. All tools are unlocked upon authenticating with your authorized Deriv account.',
   },
   {
     title: '4. Acceptable Use',
-    body: 'You may not use the platform to engage in market manipulation, fraud, or any activity that violates Deriv\'s terms of service. You may not reverse-engineer, scrape, or redistribute platform content or bot files without written permission. Automated access to the platform outside of approved API integrations is prohibited.',
+    body: 'You may not use the platform to engage in abusive market practices, malicious automation that violates Deriv’s terms of service, or unauthorized security testing. Reverse-engineering or redistributing platform code without written permission is prohibited.',
   },
   {
     title: '5. Trading Risk Acknowledgment',
-    body: 'Trading synthetic indices and other financial instruments involves substantial risk of loss. SmartTraders provides software tools, signals, and educational content — not financial advice. Past performance of any bot, trader, or strategy is not indicative of future results. You acknowledge that you may lose some or all of your trading capital.',
+    body: 'Trading synthetic indices and other financial instruments involves substantial risk of loss. RangerTrader provides software automation and analytical interfaces — not financial advice. Past performance of any bot, strategy, or algorithm is not indicative of future results. You acknowledge that you may lose some or all of your trading capital.',
   },
   {
-    title: '6. Bot & Strategy Tools',
-    body: 'Bots and strategies provided on the platform are for informational and automation purposes only. SmartTraders does not guarantee any specific outcome from using these tools. You are solely responsible for the stakes, risk settings, and trading decisions made using our tools on your Deriv account.',
+    title: '6. Bot & Strategy Automation',
+    body: 'Automated trading tools, bots, and scripts execute orders according to programmatic rules. Market volatility, execution latency, and network connection drops may affect outcomes. You are solely responsible for setting your stake amounts, stop-loss limits, and risk boundaries.',
   },
   {
-    title: '7. Copy Trading',
-    body: 'When you copy a trader, you acknowledge that the copied trader\'s performance may change at any time. SmartTraders does not guarantee the continued performance of any trader on the platform. You retain full control over your account and can stop copying at any time. Losses incurred through copy trading are your responsibility.',
+    title: '7. Copy Trading & Strategy Templates',
+    body: 'Strategy templates provide pre-configured algorithmic frameworks. Market conditions vary and theoretical win rates do not guarantee future profitability. You retain full control over your account and can halt automation or disconnect at any time.',
   },
   {
     title: '8. Intellectual Property',
-    body: 'All platform content, including bot files, UI designs, strategy logic, and written content, is the intellectual property of SmartTraders. You may not copy, distribute, or create derivative works without explicit written permission.',
+    body: 'All platform code, user interface designs, proprietary indicators, and documentation are the intellectual property of RangerTrader. Unauthorized duplication or redistribution is strictly prohibited.',
   },
   {
     title: '9. Limitation of Liability',
-    body: 'SmartTraders shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the platform, including trading losses, data loss, or service interruptions. Our total liability to you shall not exceed the amount you paid in the 30 days preceding the claim.',
+    body: 'RangerTrader shall not be liable for any trading losses, missed executions, market slippage, API connection disruptions, or indirect damages resulting from your use of the platform. You use all tools at your own risk.',
   },
   {
-    title: '10. Termination',
-    body: 'We may suspend or terminate your account at any time for violation of these terms, fraudulent activity, or at our discretion with reasonable notice. Upon termination, your access to paid features will cease immediately.',
+    title: '10. Third-Party Integration (Deriv)',
+    body: 'RangerTrader is an independent third-party companion connecting via Deriv API. Any changes, outages, or restrictions imposed by Deriv are outside of our control and subject to Deriv’s own terms and conditions.',
   },
   {
     title: '11. Changes to Terms',
-    body: 'We may update these terms from time to time. Continued use of the platform after changes constitutes acceptance of the new terms. We will notify users of material changes via email or in-platform notification.',
-  },
-  {
-    title: '12. Governing Law',
-    body: 'These terms are governed by the laws of Kenya. Any disputes shall be resolved through good-faith negotiation first, and if unresolved, through the courts of Nairobi, Kenya.',
+    body: 'We may update these terms periodically to reflect new features or regulatory requirements. Continued use of RangerTrader after updates constitutes acceptance of the modified terms.',
   },
 ]
 

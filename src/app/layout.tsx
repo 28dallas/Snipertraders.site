@@ -3,41 +3,39 @@ import { Suspense } from 'react'
 import './globals.css'
 import SiteShell from '@/components/layout/SiteShell'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pipsdollarprinter.com'
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rangertrader.com'
 
 export const metadata: Metadata = {
-  title: 'SmartTraders — Deriv Bot Builder, Copy Trading & Trading Education',
-  description: 'Learn to trade Deriv like a pro. Build profitable Deriv trading bots without coding, copy top traders, access free bots, trading strategies, a risk calculator, and beginner education — all in one place.',
-  keywords: 'Deriv bot builder, copy trading, trading bots Kenya, Deriv automation, binary options bot, learn Deriv, Deriv strategies, Deriv risk calculator, Deriv tutorial',
+  title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+  description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
+  keywords: 'RangerTrader, Deriv trading bots, Deriv bot builder, manual trader, automated trading, synthetic indices, Deriv API, D-Trader companion',
   metadataBase: new URL(siteUrl),
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/img/ranger-logo.svg',
+    shortcut: '/img/ranger-logo.svg',
+    apple: '/img/ranger-logo.svg',
+  },
   openGraph: {
-    title: 'SmartTraders — Deriv Bot Builder, Copy Trading & Trading Education',
-    description: 'Learn to trade Deriv like a pro. Build profitable Deriv trading bots, copy top traders, and access beginner education.',
+    title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+    description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
     type: 'website',
-    locale: 'en_KE',
-    siteName: 'SmartTraders',
+    siteName: 'RangerTrader',
     url: siteUrl,
   },
   twitter: {
-    site: '@smarttraders',
+    card: 'summary_large_image',
+    site: '@rangertrader',
+    title: 'RangerTrader — Direct Execution Deriv Trading Companion',
+    description: 'Precision automated bot builder, manual execution terminal, real-time risk controls, and algorithmic strategy execution powered directly by Deriv.',
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
   },
-  authors: [{ name: 'SmartTraders' }],
-  publisher: 'SmartTraders',
-  creator: 'SmartTraders',
-  verification: {
-    google: '7KAQmHAf5sUT1FBuVWlriG2X2VfsfNYhILE_LppahpY',
-  },
+  authors: [{ name: 'RangerTrader' }],
+  publisher: 'RangerTrader',
+  creator: 'RangerTrader',
 }
 
 export default function RootLayout({

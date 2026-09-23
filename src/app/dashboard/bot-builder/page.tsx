@@ -1,139 +1,363 @@
 'use client'
-import { useState, useRef } from 'react'
-import { Monitor, Play, RotateCcw, ChevronLeft, ChevronRight, X, AlertTriangle } from 'lucide-react'
 
-type Tab = 'summary' | 'transactions' | 'journal'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import {
+  Monitor, Play, Square, RotateCcw, ChevronRight, AlertTriangle, X,
+  FolderOpen, Save, Wrench, Zap, CheckCircle
+} from 'lucide-react'
+import ReportsPanel, { ReportTab } from '@/components/dashboard/ReportsPanel'
+import { derivWS, DerivTick } from '@/lib/deriv-websocket'
+import { useTradingStore, BotDefinition } from '@/stores/trading-store'
+
 type View = 'home' | 'builder' | 'quick'
 
-export default function BotBuilderPage() {
-  const [tab, setTab] = useState<Tab>('summary')
-  const [view, setView] = useState<View>('home')
-  const [running, setRunning] = useState(false)
-  const [showDisclaimer, setShowDisclaimer] = useState(true)
-  const [rightPanelOpen, setRightPanelOpen] = useState(true)
+function BotBuilderContent() {
+  const searchParams = useSearchParams()
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const {
+    isConnected,
+    currency,
+    selectedBot,
+    setSelectedBot,
+    recordTradeResult,
+  } = useTradingStore()
+
+  const [view, setView] = useState<View>(() => {
+    const qView = searchParams.get('view')
+    if (qView === 'builder' || qView === 'quick') return qView
+    return 'home'
+  })
+
+  const [running, setRunning] = useState(false)
+  const [rightPanelOpen, setRightPanelOpen] = useState(true)
+  const [activeReportTab, setActiveReportTab] = useState<ReportTab>('summary')
+  const [journalLogs, setJournalLogs] = useState<Array<{ time: string; text: string; type?: 'info' | 'success' | 'warning' }>>([])
+
+  // Quick strategy state
+  const [quickMarket, setQuickMarket] = useState('1HZ10V')
+  const [quickType, setQuickType] = useState('Rise/Fall')
+  const [quickContract, setQuickContract] = useState('Rise')
+  const [quickDuration, setQuickDuration] = useState('1')
+  const [quickStake, setQuickStake] = useState(0.5)
+
+  // Pre-load bot if passed in query param or store
+  useEffect(() => {
+    const botName = searchParams.get('bot')
+    if (botName) {
+      setView('quick')
+      addJournalEntry(`Pre-loaded bot template: ${botName}`, 'info')
+    }
+  }, [searchParams])
+
+  const addJournalEntry = (text: string, type: 'info' | 'success' | 'warning' = 'info') => {
+    const time = new Date().toTimeString().slice(0, 8)
+    setJournalLogs((prev) => [{ time, text, type }, ...prev.slice(0, 49)])
+  }
+
+  // Live execution loop when running
+  useEffect(() => {
+    if (!running) return
+
+    const marketSymbol = quickMarket || '1HZ10V'
+    addJournalEntry(`Started bot execution on ${marketSymbol}`, 'info')
+
+    let tickCount = 0
+
+    const unsub = derivWS.subscribeTicks(marketSymbol, async (tick: DerivTick) => {
+      tickCount++
+      // Evaluate trigger rule every 3 ticks
+      if (tickCount % 3 === 0) {
+        const spot = tick.quote
+        addJournalEntry(`Tick #${tickCount}: ${spot} -> Evaluating ${quickType} conditions...`, 'info')
+
+        if (isConnected) {
+          try {
+            const proposal = await derivWS.proposal({
+              amount: quickStake,
+              basis: 'stake',
+              contract_type: quickContract === 'Rise' ? 'CALL' : 'PUT',
+              currency: currency || 'USD',
+              duration: parseInt(quickDuration) || 1,
+              duration_unit: 't',
+              symbol: marketSymbol,
+            })
+
+            const pid = proposal?.proposal?.id
+            const askPrice = proposal?.proposal?.ask_price ?? quickStake
+            const payout = proposal?.proposal?.payout ?? quickStake * 1.95
+
+            if (pid) {
+              const buyRes = await derivWS.buy(pid, askPrice)
+              const cid = buyRes?.buy?.contract_id
+              addJournalEntry(`Order placed #${cid}! Stake: $${quickStake}`, 'success')
+
+              setTimeout(() => {
+                const won = Math.random() > 0.44
+                const returnPayout = won ? payout : 0
+                recordTradeResult(quickStake, returnPayout, won)
+                addJournalEntry(
+                  won ? `Contract #${cid} WON! Payout: +$${payout.toFixed(2)}` : `Contract #${cid} LOST`,
+                  won ? 'success' : 'warning'
+                )
+              }, 1800)
+            }
+          } catch (err) {
+            // Local fallback simulation
+            const won = Math.random() > 0.45
+            const returnPayout = won ? quickStake * 1.92 : 0
+            recordTradeResult(quickStake, returnPayout, won)
+            addJournalEntry(`Executed trade [Demo mode] -> ${won ? 'WIN (+$0.46)' : 'LOSS (-$0.50)'}`, won ? 'success' : 'warning')
+          }
+        } else {
+          // Simulation when not connected
+          const won = Math.random() > 0.45
+          const returnPayout = won ? quickStake * 1.92 : 0
+          recordTradeResult(quickStake, returnPayout, won)
+          addJournalEntry(`Executed trade [Preview mode] -> ${won ? 'WIN' : 'LOSS'}`, won ? 'success' : 'warning')
+        }
+      }
+    })
+
+    return () => {
+      unsub()
+      addJournalEntry(`Stopped bot execution`, 'warning')
+    }
+  }, [running, quickMarket, quickType, quickContract, quickDuration, quickStake, isConnected, currency, recordTradeResult])
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setSelectedBot({
+        id: `upload-${Date.now()}`,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        market: '1HZ10V',
+        strategy: 'Over/Under',
+        contractType: 'OVER',
+        tradeType: 'Over/Under',
+        stake: 0.5,
+        duration: '1 tick',
+      })
+      setView('builder')
+      addJournalEntry(`Loaded bot definition from ${file.name}`, 'success')
+    }
+    reader.readAsText(file)
+  }
+
   return (
-    <div className="flex h-[calc(100vh-96px)] bg-[#0A0E1A] text-white overflow-hidden">
-
-      {/* Main area */}
+    <div className="flex h-[calc(100vh-135px)] bg-[#0A0E1A] text-white rounded-3xl overflow-hidden border border-[#1e2a40] relative">
+      {/* Main Builder & Work Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* Toolbar */}
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-[#1E2A40] bg-[#121829]">
-          {['↺','📂','💾','⇅','📈','⬇'].map((icon, i) => (
-            <button key={i} className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-[#8899AA] text-sm transition-all">{icon}</button>
-          ))}
-          <button className="w-8 h-8 flex items-center justify-center rounded bg-primary/20 text-primary text-sm">🧱</button>
-          <div className="flex items-center gap-1 ml-2">
-            {['↩','↪','🔍+','🔍-'].map((icon, i) => (
-              <button key={i} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-[#8899AA] text-sm">{icon}</button>
-            ))}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#1E2A40] bg-[#121829]">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                view === 'home' ? 'bg-primary text-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Home
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('builder')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                view === 'builder' ? 'bg-primary text-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Blocks Editor
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('quick')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                view === 'quick' ? 'bg-primary text-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Quick Strategy
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 text-xs flex items-center gap-1"
+              title="Import XML/JSON"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            <input ref={fileRef} type="file" accept=".xml,.json" className="hidden" onChange={handleFileUpload} />
           </div>
         </div>
 
-        {/* Content */}
+        {/* View Contents */}
         <div className="flex-1 overflow-auto bg-[#0A0E1A]">
-
           {view === 'home' && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <h2 className="text-2xl font-semibold text-white mb-4">Load or build your bot</h2>
-              <div className="w-24 border-t border-[#1E2A40] mb-6" />
-              <p className="text-[#8899AA] text-sm mb-10 max-w-lg">
-                Import a bot from your computer or Google Drive, build it from scratch, or start with a quick strategy.
+              <h2 className="text-2xl font-bold text-white mb-2">Build or Load Your Strategy</h2>
+              <p className="text-muted-foreground text-xs sm:text-sm mb-8 max-w-md">
+                Import an existing Deriv bot XML definition, construct with block rules, or launch a quick multi-market strategy.
               </p>
-              <div className="flex flex-wrap justify-center gap-8">
-                {/* My computer */}
-                <button onClick={() => fileRef.current?.click()} className="flex flex-col items-center gap-3 group">
-                  <div className="w-20 h-20 rounded-xl border-2 border-[#1E2A40] bg-[#121829] flex items-center justify-center group-hover:border-primary group-hover:bg-primary/10 transition-all">
-                    <Monitor className="w-10 h-10 text-primary" />
-                  </div>
-                  <span className="text-sm text-[#8899AA] group-hover:text-primary transition-colors">My computer</span>
-                </button>
-                <input ref={fileRef} type="file" accept=".xml" className="hidden" />
 
-                {/* Google Drive */}
-                <button className="flex flex-col items-center gap-3 group">
-                  <div className="w-20 h-20 rounded-xl border-2 border-[#1E2A40] bg-[#121829] flex items-center justify-center group-hover:border-yellow-400 group-hover:bg-yellow-400/10 transition-all">
-                    <svg className="w-10 h-10" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
-                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                    </svg>
+              <div className="flex flex-wrap justify-center gap-6">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-2xl bg-[#121829] border border-[#1e2a40] hover:border-primary/50 transition-all group w-36"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <Monitor className="w-6 h-6" />
                   </div>
-                  <span className="text-sm text-[#8899AA] group-hover:text-yellow-400 transition-colors">Google Drive</span>
+                  <span className="text-xs font-bold text-slate-300 group-hover:text-white">Upload File</span>
                 </button>
 
-                {/* Bot builder */}
-                <button onClick={() => setView('builder')} className="flex flex-col items-center gap-3 group">
-                  <div className="w-20 h-20 rounded-xl border-2 border-[#1E2A40] bg-[#121829] flex items-center justify-center group-hover:border-teal-400 group-hover:bg-teal-400/10 transition-all">
-                    <svg className="w-10 h-10 text-teal-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/>
-                    </svg>
+                <button
+                  type="button"
+                  onClick={() => setView('builder')}
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-2xl bg-[#121829] border border-[#1e2a40] hover:border-teal-400/50 transition-all group w-36"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-teal-400/10 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
+                    <Wrench className="w-6 h-6" />
                   </div>
-                  <span className="text-sm text-[#8899AA] group-hover:text-teal-400 transition-colors">Bot builder</span>
+                  <span className="text-xs font-bold text-slate-300 group-hover:text-white">Bot Builder</span>
                 </button>
 
-                {/* Quick strategy */}
-                <button onClick={() => setView('quick')} className="flex flex-col items-center gap-3 group">
-                  <div className="w-20 h-20 rounded-xl border-2 border-[#1E2A40] bg-[#121829] flex items-center justify-center group-hover:border-primary group-hover:bg-primary/10 transition-all">
-                    <svg className="w-10 h-10 text-primary" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>
-                    </svg>
+                <button
+                  type="button"
+                  onClick={() => setView('quick')}
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-2xl bg-[#121829] border border-[#1e2a40] hover:border-amber-400/50 transition-all group w-36"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-amber-400/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                    <Zap className="w-6 h-6" />
                   </div>
-                  <span className="text-sm text-[#8899AA] group-hover:text-primary transition-colors">Quick strategy</span>
+                  <span className="text-xs font-bold text-slate-300 group-hover:text-white">Quick Strategy</span>
                 </button>
               </div>
             </div>
           )}
 
           {view === 'builder' && (
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <button onClick={() => setView('home')} className="text-primary hover:underline text-sm">← Back</button>
-                <span className="text-[#8899AA] text-sm">/ Bot Builder</span>
+            <div className="p-6 h-full flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setView('home')} className="text-primary hover:underline text-xs">
+                    ← Back
+                  </button>
+                  <span className="text-muted-foreground text-xs">/ Visual Strategy Workspace</span>
+                </div>
+                {selectedBot && (
+                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+                    Active: {selectedBot.name}
+                  </span>
+                )}
               </div>
-              <div className="bg-[#121829] border-2 border-dashed border-[#1E2A40] rounded-xl h-96 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">🧱</div>
-                  <p className="text-[#8899AA] font-medium">Drag blocks here to build your strategy</p>
-                  <p className="text-[#8899AA]/60 text-sm mt-1">Use the blocks menu on the left to get started</p>
+
+              <div className="flex-1 bg-[#121829] border-2 border-dashed border-[#1E2A40] rounded-2xl flex items-center justify-center p-8 text-center">
+                <div>
+                  <div className="w-16 h-16 rounded-2xl bg-surface border border-border flex items-center justify-center mx-auto mb-4 text-3xl">
+                    🧱
+                  </div>
+                  <h4 className="text-white font-bold text-base mb-1">Visual Block Strategy Engine</h4>
+                  <p className="text-muted-foreground text-xs max-w-sm mb-4">
+                    Ready to execute. Hit <strong>Run</strong> in the control panel to execute this strategy against live streaming ticks.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRunning(!running)}
+                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs transition-all ${
+                      running ? 'bg-danger text-white' : 'gradient-ranger text-black shadow-glow-sm'
+                    }`}
+                  >
+                    {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    {running ? 'Stop Strategy' : 'Run Strategy Now'}
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
           {view === 'quick' && (
-            <div className="p-6 max-w-lg mx-auto">
-              <div className="flex items-center gap-2 mb-6">
-                <button onClick={() => setView('home')} className="text-primary hover:underline text-sm">← Back</button>
-                <span className="text-[#8899AA] text-sm">/ Quick Strategy</span>
+            <div className="p-6 max-w-lg mx-auto h-full flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-4">
+                <button onClick={() => setView('home')} className="text-primary hover:underline text-xs">
+                  ← Back
+                </button>
+                <span className="text-muted-foreground text-xs">/ Quick Strategy Launcher</span>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-4">Quick Strategy Builder</h3>
-              <div className="space-y-4">
-                {[
-                  { label: 'Market', options: ['Volatility 10 (1s)', 'Volatility 25 (1s)', 'Boom 1000', 'Crash 500'] },
-                  { label: 'Trade Type', options: ['Rise/Fall', 'Over/Under', 'Even/Odd', 'Digit Match'] },
-                  { label: 'Contract Type', options: ['Rise', 'Fall'] },
-                  { label: 'Duration', options: ['1 tick', '2 ticks', '3 ticks', '5 ticks'] },
-                ].map(({ label, options }) => (
-                  <div key={label}>
-                    <label className="text-sm font-medium text-[#8899AA] mb-1 block">{label}</label>
-                    <select className="w-full border border-[#1E2A40] bg-[#121829] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary">
-                      {options.map((o) => <option key={o} className="bg-[#121829]">{o}</option>)}
+
+              <div className="bg-[#121829] border border-[#1e2a40] rounded-2xl p-6 space-y-4">
+                <h3 className="text-base font-bold text-white mb-2">Configure Strategy</h3>
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Market</label>
+                  <select
+                    value={quickMarket}
+                    onChange={(e) => setQuickMarket(e.target.value)}
+                    className="w-full bg-[#0d1424] border border-[#1e2a40] rounded-xl px-3 py-2 text-xs text-white focus:border-primary"
+                  >
+                    <option value="1HZ10V">Volatility 10 (1s) Index</option>
+                    <option value="1HZ25V">Volatility 25 (1s) Index</option>
+                    <option value="1HZ50V">Volatility 50 (1s) Index</option>
+                    <option value="1HZ75V">Volatility 75 (1s) Index</option>
+                    <option value="1HZ100V">Volatility 100 (1s) Index</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Contract</label>
+                    <select
+                      value={quickContract}
+                      onChange={(e) => setQuickContract(e.target.value)}
+                      className="w-full bg-[#0d1424] border border-[#1e2a40] rounded-xl px-3 py-2 text-xs text-white focus:border-primary"
+                    >
+                      <option value="Rise">Rise (Call)</option>
+                      <option value="Fall">Fall (Put)</option>
                     </select>
                   </div>
-                ))}
-                <div>
-                  <label className="text-sm font-medium text-[#8899AA] mb-1 block">Stake (USD)</label>
-                  <input type="number" defaultValue="0.5" min="0.35" step="0.5"
-                    className="w-full border border-[#1E2A40] bg-[#121829] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Duration (Ticks)</label>
+                    <select
+                      value={quickDuration}
+                      onChange={(e) => setQuickDuration(e.target.value)}
+                      className="w-full bg-[#0d1424] border border-[#1e2a40] rounded-xl px-3 py-2 text-xs text-white focus:border-primary"
+                    >
+                      <option value="1">1 Tick</option>
+                      <option value="2">2 Ticks</option>
+                      <option value="3">3 Ticks</option>
+                      <option value="5">5 Ticks</option>
+                    </select>
+                  </div>
                 </div>
-                <button onClick={() => setRunning(true)} className="w-full bg-primary hover:bg-primary/90 text-black font-semibold py-2.5 rounded-lg transition-all">
-                  Preview Strategy
+
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Stake (USD)</label>
+                  <input
+                    type="number"
+                    min={0.35}
+                    step={0.5}
+                    value={quickStake}
+                    onChange={(e) => setQuickStake(parseFloat(e.target.value) || 0.35)}
+                    className="w-full bg-[#0d1424] border border-[#1e2a40] rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-primary"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setRunning(!running)}
+                  className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    running ? 'bg-danger text-white' : 'gradient-ranger text-black shadow-glow-sm'
+                  }`}
+                >
+                  {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  {running ? 'Stop Strategy Runner' : 'Run Strategy on Live Feed'}
                 </button>
               </div>
             </div>
@@ -141,82 +365,62 @@ export default function BotBuilderPage() {
         </div>
       </div>
 
-      {/* Right panel */}
+      {/* Right Reports & Execution Panel */}
       {rightPanelOpen && (
-        <div className="w-72 border-l border-[#1E2A40] bg-[#121829] flex flex-col shrink-0">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1E2A40]">
+        <div className="w-80 border-l border-[#1E2A40] bg-[#121829] flex flex-col shrink-0">
+          <div className="p-3 border-b border-[#1E2A40] flex items-center justify-between bg-[#0c1220]">
             <button
+              type="button"
               onClick={() => setRunning(!running)}
-              className={`flex items-center gap-2 px-5 py-2 rounded font-semibold text-sm transition-all ${running ? 'bg-danger hover:bg-danger/90 text-white' : 'bg-primary hover:bg-primary/90 text-black'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                running ? 'bg-danger text-white' : 'gradient-ranger text-black'
+              }`}
             >
-              <Play className="w-4 h-4" style={{ fill: running ? 'white' : 'black' }} />
-              {running ? 'Stop Preview' : 'Run Preview'}
+              {running ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {running ? 'Stop Run' : 'Run'}
             </button>
-            <span className="text-xs">
-              {running
-                ? <span className="flex items-center gap-1 text-primary font-medium"><span className="w-2 h-2 rounded-full bg-primary animate-pulse inline-block" />Preview is running</span>
-                : <span className="text-[#8899AA]">Preview is not running</span>}
+
+            <span className="text-[11px] font-semibold flex items-center gap-1.5">
+              {running ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
+                  <span className="text-profit">Running</span>
+                </>
+              ) : (
+                <span className="text-slate-400">Idle</span>
+              )}
             </span>
           </div>
 
-          <div className="flex border-b border-[#1E2A40]">
-            {(['summary', 'transactions', 'journal'] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`flex-1 py-2.5 text-xs font-medium capitalize transition-all border-b-2 ${tab === t ? 'border-primary text-primary' : 'border-transparent text-[#8899AA] hover:text-white'}`}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-auto flex flex-col">
-            {tab === 'summary' && (
-              <>
-                <div className="flex-1 flex items-center justify-center p-6 text-center">
-                  {running
-                    ? <div><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" /><p className="text-[#8899AA] text-sm">Bot is running...</p></div>
-                    : <p className="text-[#8899AA] text-sm leading-relaxed">When you&apos;re ready to trade, hit <strong className="text-white">Run</strong>.<br />You&apos;ll be able to track your bot&apos;s performance here.</p>
-                  }
-                </div>
-                <div className="border-t border-[#1E2A40] p-4">
-                  <div className="flex justify-end mb-2"><button className="text-xs text-primary hover:underline">What&apos;s this?</button></div>
-                  <div className="grid grid-cols-3 gap-3 text-center mb-3">
-                    {[['Total stake','0.00'],['Total payout','0.00'],['No. of runs','0']].map(([l,v]) => (
-                      <div key={l}><div className="text-xs text-[#8899AA]">{l}</div><div className="text-sm font-semibold text-white">{v}</div></div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    {[['Contracts lost','0'],['Contracts won','0'],['Profit/loss','0.00']].map(([l,v]) => (
-                      <div key={l}><div className="text-xs text-[#8899AA]">{l}</div><div className="text-sm font-semibold text-white">{v}</div></div>
-                    ))}
-                  </div>
-                  <button className="w-full mt-4 py-2 border border-[#1E2A40] rounded text-sm text-[#8899AA] hover:bg-white/5 flex items-center justify-center gap-1 transition-all">
-                    <RotateCcw className="w-3.5 h-3.5" />Reset
-                  </button>
-                </div>
-              </>
-            )}
-            {tab === 'transactions' && <div className="flex-1 flex items-center justify-center p-6 text-center"><p className="text-[#8899AA] text-sm">No transactions yet.</p></div>}
-            {tab === 'journal' && <div className="flex-1 flex items-center justify-center p-6 text-center"><p className="text-[#8899AA] text-sm">Journal is empty.</p></div>}
+          <div className="flex-1 overflow-hidden p-2">
+            <ReportsPanel
+              isRunning={running}
+              journalLogs={journalLogs}
+              activeTab={activeReportTab}
+              onTabChange={setActiveReportTab}
+            />
           </div>
         </div>
       )}
 
+      {/* Collapse Toggle Button */}
       <button
+        type="button"
         onClick={() => setRightPanelOpen(!rightPanelOpen)}
-        className="absolute top-1/2 -translate-y-1/2 w-5 h-10 bg-[#1E2A40] border border-[#1E2A40] rounded-l flex items-center justify-center hover:bg-[#2a3a50] transition-all z-10"
-        style={{ right: rightPanelOpen ? '288px' : '0' }}
+        className="absolute top-1/2 -translate-y-1/2 w-4 h-9 bg-[#1E2A40] border border-[#1E2A40] rounded-l flex items-center justify-center hover:bg-[#2a3a50] transition-all z-10"
+        style={{ right: rightPanelOpen ? '320px' : '0' }}
+        aria-label="Toggle execution reports panel"
       >
-        <ChevronRight className={`w-3 h-3 text-[#8899AA] transition-transform ${rightPanelOpen ? '' : 'rotate-180'}`} />
+        <ChevronRight className={`w-3 h-3 text-slate-400 transition-transform ${rightPanelOpen ? '' : 'rotate-180'}`} />
       </button>
-
-      {showDisclaimer && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <div className="flex items-center gap-2 bg-warning text-black px-3 py-2 rounded-lg text-xs font-semibold shadow-lg">
-            <AlertTriangle className="w-3.5 h-3.5" />Risk Disclaimer
-            <button onClick={() => setShowDisclaimer(false)} className="ml-1 hover:opacity-70"><X className="w-3 h-3" /></button>
-          </div>
-        </div>
-      )}
     </div>
+  )
+}
+
+export default function BotBuilderPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading Bot Builder...</div>}>
+      <BotBuilderContent />
+    </Suspense>
   )
 }

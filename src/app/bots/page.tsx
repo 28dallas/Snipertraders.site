@@ -78,16 +78,20 @@ return (
                   <p className="text-[#8899AA] text-xs font-medium leading-snug line-clamp-2 min-h-[32px]">{name}</p>
                 </div>
                 <div className="flex-1 mx-3 my-2 rounded bg-[#060918] min-h-[80px]" />
-                <button
-                  onClick={() => { setLoadedBot(name); setRunning(false) }}
-                  className={`py-2.5 text-sm font-semibold transition-all w-full ${
-                    loadedBot === name
-                      ? 'bg-primary text-black'
-                      : 'bg-blue-700 hover:bg-blue-600 text-white'
-                  }`}
-                >
-                  {loadedBot === name ? '✓ Loaded' : 'Load Bot'}
-                </button>
+                <div className="p-2.5 flex flex-col gap-1.5 border-t border-[#1e2a40]">
+                  <Link
+                    href={`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(name)}`}
+                    className="py-1.5 text-center text-xs font-semibold rounded-lg bg-surface border border-border text-white hover:border-primary/50 transition-colors"
+                  >
+                    Open in Builder
+                  </Link>
+                  <Link
+                    href={`/dashboard/auto-trader?bot=${encodeURIComponent(name)}`}
+                    className="py-1.5 text-center text-xs font-bold rounded-lg bg-primary text-black hover:opacity-90 transition-all shadow-glow-sm"
+                  >
+                    Open in Auto Trader
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

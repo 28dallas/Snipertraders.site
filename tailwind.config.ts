@@ -10,27 +10,35 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#09090b',
-        surface: '#0f0f12',
-        card: '#18181b',
-        border: '#27272a',
+        background: '#0a0e1a',
+        surface: '#121829',
+        card: '#162036',
+        border: '#1e2a40',
         primary: {
-          DEFAULT: '#10b981',
-          foreground: '#022c22',
-          muted: '#059669',
+          DEFAULT: '#00d2b4',
+          foreground: '#03171f',
+          muted: '#0d9488',
         },
-        accent: '#34d399',
+        accent: {
+          DEFAULT: '#f59e0b',
+          teal: '#00d2b4',
+          amber: '#f59e0b',
+          coral: '#f43f5e',
+          cyan: '#00f2fe',
+        },
         muted: {
-          DEFAULT: '#27272a',
-          foreground: '#a1a1aa',
+          DEFAULT: '#1e2a40',
+          foreground: '#94a3b8',
         },
-        success: '#10b981',
+        profit: '#00e676',
+        loss: '#ef4444',
+        success: '#00e676',
         warning: '#f59e0b',
         danger: '#ef4444',
         gold: '#f59e0b',
         zinc: {
-          850: '#1f1f23',
-          950: '#09090b',
+          850: '#162036',
+          950: '#0a0e1a',
         },
       },
       fontFamily: {

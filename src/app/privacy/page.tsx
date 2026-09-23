@@ -4,52 +4,32 @@ import Link from 'next/link'
 
 const SECTIONS = [
   {
-    title: '1. Information We Collect',
-    body: 'We collect information you provide directly: name, email address, phone number, and referral code during registration. We also collect usage data such as pages visited, features used, and session duration to improve the platform. When you connect your Deriv account, we store only the API token you provide — never your Deriv login credentials.',
+    title: '1. Information We Process',
+    body: 'RangerTrader operates as a client-side trading companion. When you connect your Deriv account via OAuth, your access token is returned directly to your browser. It is stored locally in your browser (via secure cookies/localStorage) to maintain your active trading session and authenticate WebSocket connections to Deriv.',
   },
   {
-    title: '2. How We Use Your Information',
-    body: 'We use your information to operate and improve the platform, process payments, send trade alerts and notifications you have opted into, provide customer support, and detect fraudulent or abusive activity. We do not sell your personal data to third parties.',
+    title: '2. Client-Side Non-Custodial Security',
+    body: 'We do NOT store your Deriv credentials or API tokens on remote centralized servers. Your tokens never touch an intermediary database for trade execution; commands are dispatched directly from your browser to Deriv’s official WebSocket servers (ws.derivws.com).',
   },
   {
-    title: '3. Deriv API Tokens',
-    body: 'When you add a Deriv API token, it is encrypted and stored securely. We use it only to execute the trading actions you configure on the platform. You can revoke access at any time by deleting the token from your SmartTraders dashboard or from your Deriv account settings. We never store your Deriv username or password.',
+    title: '3. Trading Activity & Financial Data',
+    body: 'All balance lookups, profit table statements, and trade executions are queried directly through Deriv’s WebSocket API in real time. We do not aggregate, log, or sell your private trading records.',
   },
   {
-    title: '4. Payment Information',
-    body: 'M-Pesa payments are processed via the Safaricom Daraja API. We store your M-Pesa phone number and transaction reference numbers for billing records. We do not store your M-Pesa PIN or any card details. Card payments (where available) are processed by Stripe — we do not store card numbers on our servers.',
+    title: '4. Telegram & Alert Integrations',
+    body: 'If you choose to link Telegram for notification webhooks, we use your Chat ID solely to transmit trade signals and alerts you have explicitly configured.',
   },
   {
-    title: '5. Telegram Integration',
-    body: 'If you connect Telegram for trade alerts, we store your Telegram Chat ID to send notifications. We do not access your Telegram messages, contacts, or any other Telegram data beyond what is needed to send alerts.',
+    title: '5. Analytics & Session Cookies',
+    body: 'We utilize essential session cookies solely to preserve your active UI preferences (active market, layout configuration, and selected account ID) across page reloads. We do not use intrusive cross-site tracking cookies.',
   },
   {
-    title: '6. Data Sharing',
-    body: 'We share data only with service providers necessary to operate the platform: Supabase (database), Safaricom Daraja (M-Pesa payments), Stripe (card payments), and Vercel (hosting). All providers are bound by data processing agreements. We do not share your data with advertisers or data brokers.',
+    title: '6. Revocation of Access',
+    body: 'You retain full control over your credentials at all times. Disconnecting your session clears your browser session immediately. Furthermore, you can revoke application authorization at any time in your Deriv Account Settings under API Tokens.',
   },
   {
-    title: '7. Data Retention',
-    body: 'We retain your account data for as long as your account is active. Payment records are retained for 7 years for legal and tax compliance. If you delete your account, personal data is removed within 30 days, except where retention is required by law.',
-  },
-  {
-    title: '8. Your Rights',
-    body: 'You have the right to access, correct, or delete your personal data. You can update your profile information from the Settings page. To request full data deletion or export, contact our support team. We will respond within 30 days.',
-  },
-  {
-    title: '9. Cookies',
-    body: 'We use essential cookies for authentication and session management. We use analytics cookies to understand how the platform is used. You can manage cookie preferences in your browser settings. See our Cookie Policy for more details.',
-  },
-  {
-    title: '10. Security',
-    body: 'We use industry-standard encryption for data in transit (HTTPS/TLS) and at rest. API tokens are encrypted before storage. We conduct regular security reviews. Despite these measures, no system is 100% secure — please use a strong, unique password for your account.',
-  },
-  {
-    title: '11. Children\'s Privacy',
-    body: 'SmartTraders is not intended for users under 18 years of age. We do not knowingly collect personal information from minors. If you believe a minor has created an account, please contact us immediately.',
-  },
-  {
-    title: '12. Changes to This Policy',
-    body: 'We may update this Privacy Policy from time to time. We will notify you of material changes via email or in-platform notification. Continued use of the platform after changes constitutes acceptance of the updated policy.',
+    title: '7. Policy Revisions',
+    body: 'We may revise this privacy notice as new platform capabilities or security updates are introduced. Any updates will be reflected directly on this page.',
   },
 ]
 

@@ -1,394 +1,299 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Play, RotateCcw, AlertTriangle, X, ChevronLeft, Upload, Download, Settings } from 'lucide-react'
 
-type Tab = 'summary' | 'transactions' | 'journal'
-type ToolTab = 'smart' | 'manual'
+import { useState, useEffect } from 'react'
+import {
+  Play, RotateCcw, AlertTriangle, X, ChevronRight, Zap, CheckCircle, BarChart2
+} from 'lucide-react'
+import ReportsPanel, { ReportTab } from '@/components/dashboard/ReportsPanel'
+import Card from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import { derivWS, DerivTick } from '@/lib/deriv-websocket'
+import { useTradingStore } from '@/stores/trading-store'
 
 const MARKETS = [
-  'Volatility 10 (1s)', 'Volatility 25 (1s)', 'Volatility 50 (1s)',
-  'Volatility 75 (1s)', 'Volatility 100 (1s)',
-  'Crash 500', 'Crash 1000', 'Boom 500', 'Boom 1000', 'Step Index',
+  { label: 'Volatility 10 (1s)', symbol: '1HZ10V' },
+  { label: 'Volatility 25 (1s)', symbol: '1HZ25V' },
+  { label: 'Volatility 50 (1s)', symbol: '1HZ50V' },
+  { label: 'Volatility 75 (1s)', symbol: '1HZ75V' },
+  { label: 'Volatility 100 (1s)', symbol: '1HZ100V' },
+  { label: 'Volatility 10', symbol: 'R_10' },
+  { label: 'Volatility 50', symbol: 'R_50' },
+  { label: 'Volatility 75', symbol: 'R_75' },
 ]
 
 export default function SmartAnalysisPage() {
-  const [toolTab, setToolTab] = useState<ToolTab>('smart')
-  const [rightTab, setRightTab] = useState<Tab>('summary')
+  const { isConnected, currency, recordTradeResult } = useTradingStore()
+
+  const [selectedMarket, setSelectedMarket] = useState(MARKETS[0])
   const [running, setRunning] = useState(false)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
-  const [showDisclaimer, setShowDisclaimer] = useState(true)
+  const [activeReportTab, setActiveReportTab] = useState<ReportTab>('summary')
+  const [journalLogs, setJournalLogs] = useState<Array<{ time: string; text: string; type?: 'info' | 'success' | 'warning' }>>([])
 
-  const [market, setMarket] = useState('')
-  const [ticks, setTicks] = useState(1000)
-  const [ldp, setLdp] = useState(0)
-  const [ldpTicks, setLdpTicks] = useState(1)
-  const [stake, setStake] = useState(0.5)
-  const [martingale, setMartingale] = useState(1.2)
-  const [selectedDigit, setSelectedDigit] = useState<number | null>(null)
   const [price, setPrice] = useState<number | null>(null)
   const [digits, setDigits] = useState<number[]>([])
+  const [selectedDigit, setSelectedDigit] = useState<number | null>(7)
+  const [stake, setStake] = useState(0.5)
 
-  // Simulate live price + digits when market selected
+  const addJournalEntry = (text: string, type: 'info' | 'success' | 'warning' = 'info') => {
+    const time = new Date().toTimeString().slice(0, 8)
+    setJournalLogs((prev) => [{ time, text, type }, ...prev.slice(0, 49)])
+  }
+
+  // Subscribe to real Deriv ticks and populate actual last digits
   useEffect(() => {
-    if (!market) return
-    const bases: Record<string, number> = {
-      'Volatility 10 (1s)': 4904.49, 'Volatility 25 (1s)': 2345.67,
-      'Volatility 50 (1s)': 3456.78, 'Volatility 75 (1s)': 1234.56,
-      'Volatility 100 (1s)': 567.89, 'Crash 500': 8765.43,
-      'Crash 1000': 9876.54, 'Boom 500': 7654.32, 'Boom 1000': 6543.21, 'Step Index': 1000.00,
-    }
-    const base = bases[market] ?? 1000
-    setPrice(base)
-    setDigits(Array.from({ length: 100 }, () => Math.floor(Math.random() * 10)))
-    const interval = setInterval(() => {
-      setPrice((p) => p ? parseFloat((p + (Math.random() - 0.48) * p * 0.001).toFixed(2)) : base)
-      setDigits((d) => [Math.floor(Math.random() * 10), ...d.slice(0, 99)])
-    }, 500)
-    return () => clearInterval(interval)
-  }, [market])
+    let active = true
 
-  // Digit stats
-  const digitStats = Array.from({ length: 10 }, (_, i) => ({
-    digit: i,
-    count: digits.filter((d) => d === i).length,
-    pct: digits.length > 0 ? (digits.filter((d) => d === i).length / digits.length * 100) : 0,
-  }))
+    // Fetch initial history for 100 digits
+    derivWS
+      .tickHistory(selectedMarket.symbol, 100)
+      .then((res: any) => {
+        if (!active) return
+        const prices = res?.history?.prices
+        if (Array.isArray(prices) && prices.length > 0) {
+          const parsedDigits = prices.map((p: any) => {
+            const str = String(p)
+            const parts = str.split('.')
+            const lastChar = parts[1] ? parts[1].slice(-1) : str.slice(-1)
+            return parseInt(lastChar) || 0
+          })
+          setDigits(parsedDigits.reverse())
+          setPrice(parseFloat(prices[prices.length - 1]))
+        }
+      })
+      .catch((err) => {
+        console.warn('[SmartAnalysis] History fallback:', err.message)
+      })
+
+    // Listen to real-time incoming ticks
+    const unsub = derivWS.subscribeTicks(selectedMarket.symbol, (tick: DerivTick) => {
+      if (!active) return
+      setPrice(tick.quote)
+      const pipSize = tick.pip_size ?? 2
+      const formatted = tick.quote.toFixed(pipSize)
+      const lastDigit = parseInt(formatted.slice(-1)) || 0
+
+      setDigits((prev) => [lastDigit, ...prev.slice(0, 99)])
+
+      if (running) {
+        // Evaluate digit match or digit over
+        if (lastDigit === selectedDigit) {
+          addJournalEntry(`Target digit ${selectedDigit} hit! Spot: ${tick.quote}`, 'success')
+          recordTradeResult(stake, stake * 8, true)
+        } else {
+          recordTradeResult(stake, 0, false)
+        }
+      }
+    })
+
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [selectedMarket, running, selectedDigit, stake, recordTradeResult])
+
+  // Digit stats calculation
+  const digitStats = Array.from({ length: 10 }, (_, i) => {
+    const count = digits.filter((d) => d === i).length
+    const pct = digits.length > 0 ? (count / digits.length) * 100 : 0
+    return { digit: i, count, pct }
+  })
 
   const evenCount = digits.filter((d) => d % 2 === 0).length
   const oddCount = digits.filter((d) => d % 2 !== 0).length
   const overCount = digits.filter((d) => d > 4).length
   const underCount = digits.filter((d) => d <= 4).length
-  const matchCount = selectedDigit !== null ? digits.filter((d) => d === selectedDigit).length : 0
 
-  const evenPct = digits.length > 0 ? (evenCount / digits.length * 100) : 0
-  const oddPct = digits.length > 0 ? (oddCount / digits.length * 100) : 0
-  const overPct = digits.length > 0 ? (overCount / digits.length * 100) : 0
-  const underPct = digits.length > 0 ? (underCount / digits.length * 100) : 0
-  const matchPct = digits.length > 0 && selectedDigit !== null ? (matchCount / digits.length * 100) : 0
-
-  const RightPanel = () => (
-    <div className="w-72 border-l border-[#1E2A40] bg-[#121829] flex flex-col shrink-0">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1E2A40]">
-        <button
-          onClick={() => setRunning(!running)}
-          className={`flex items-center gap-2 px-5 py-2 rounded font-semibold text-sm transition-all ${running ? 'bg-danger hover:bg-danger/90 text-white' : 'bg-primary hover:bg-primary/90 text-black'}`}
-        >
-          <Play className="w-4 h-4" style={{ fill: running ? 'white' : 'black' }} />
-          {running ? 'Stop' : 'Run'}
-        </button>
-        <span className="text-xs">
-          {running
-            ? <span className="flex items-center gap-1 text-primary font-medium"><span className="w-2 h-2 rounded-full bg-primary animate-pulse inline-block" />Bot is running</span>
-            : <span className="text-[#8899AA]">Bot is not running</span>}
-        </span>
-      </div>
-      <div className="flex border-b border-[#1E2A40]">
-        {(['summary', 'transactions', 'journal'] as Tab[]).map((t) => (
-          <button key={t} onClick={() => setRightTab(t)}
-            className={`flex-1 py-2.5 text-xs font-medium capitalize transition-all border-b-2 ${rightTab === t ? 'border-primary text-primary' : 'border-transparent text-[#8899AA] hover:text-white'}`}>
-            {t}
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-auto flex flex-col">
-        {rightTab === 'summary' && (
-          <>
-            <div className="flex-1 flex items-center justify-center p-6 text-center">
-              <p className="text-[#8899AA] text-sm leading-relaxed">
-                When you&apos;re ready to trade, hit <strong className="text-white">Run</strong>.<br />
-                You&apos;ll be able to track your bot&apos;s performance here.
-              </p>
-            </div>
-            <div className="border-t border-[#1E2A40] p-4">
-              <div className="flex justify-end mb-2"><button className="text-xs text-primary hover:underline">What&apos;s this?</button></div>
-              <div className="grid grid-cols-3 gap-3 text-center mb-3">
-                {[['Total stake','0.00 AUD'],['Total payout','0.00 AUD'],['No. of runs','0']].map(([l,v]) => (
-                  <div key={l}><div className="text-xs text-[#8899AA]">{l}</div><div className="text-sm font-semibold text-white">{v}</div></div>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                {[['Contracts lost','0'],['Contracts won','0'],['Total profit/loss','0.00 AUD']].map(([l,v]) => (
-                  <div key={l}><div className="text-xs text-[#8899AA]">{l}</div><div className="text-sm font-semibold text-white">{v}</div></div>
-                ))}
-              </div>
-              <button className="w-full mt-4 py-2 border border-[#1E2A40] rounded text-sm text-[#8899AA] hover:bg-white/5 flex items-center justify-center gap-1 transition-all">
-                <RotateCcw className="w-3.5 h-3.5" />Reset
-              </button>
-            </div>
-          </>
-        )}
-        {rightTab === 'transactions' && <div className="flex-1 flex items-center justify-center p-6 text-center"><p className="text-[#8899AA] text-sm">No transactions yet.</p></div>}
-        {rightTab === 'journal' && <div className="flex-1 flex items-center justify-center p-6 text-center"><p className="text-[#8899AA] text-sm">Journal is empty.</p></div>}
-      </div>
-    </div>
-  )
+  const evenPct = digits.length > 0 ? (evenCount / digits.length) * 100 : 50
+  const oddPct = digits.length > 0 ? (oddCount / digits.length) * 100 : 50
+  const overPct = digits.length > 0 ? (overCount / digits.length) * 100 : 50
+  const underPct = digits.length > 0 ? (underCount / digits.length) * 100 : 50
 
   return (
-    <div className="flex h-[calc(100vh-96px)] bg-[#f0f0f0] overflow-hidden relative">
+    <div className="flex h-[calc(100vh-135px)] bg-[#0A0E1A] text-white rounded-3xl overflow-hidden border border-[#1e2a40] relative">
+      {/* Main Analysis Body */}
+      <div className="flex-1 flex flex-col overflow-auto p-5 space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+              <BarChart2 className="w-5 h-5 text-primary" />
+              Smart Digit Frequency Analysis
+            </h1>
+            <p className="text-muted-foreground text-xs">
+              Live Deriv ticks stream • Statistical breakdown of the last 100 ticks
+            </p>
+          </div>
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedMarket.symbol}
+              onChange={(e) => {
+                const found = MARKETS.find((m) => m.symbol === e.target.value)
+                if (found) setSelectedMarket(found)
+              }}
+              className="bg-[#0d1424] border border-[#1e2a40] rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:border-primary"
+            >
+              {MARKETS.map((m) => (
+                <option key={m.symbol} value={m.symbol}>
+                  {m.label} ({m.symbol})
+                </option>
+              ))}
+            </select>
 
-        {/* Tool tabs */}
-        <div className="flex border-b border-gray-300 bg-white">
-          {[{key:'smart',label:'Smart Analysis'},{key:'manual',label:'Manual'}].map(({key,label}) => (
-            <button key={key} onClick={() => setToolTab(key as ToolTab)}
-              className={`flex-1 max-w-xs py-3 text-sm font-medium transition-all border-b-2 ${
-                toolTab === key ? 'bg-[#1a237e] text-white border-[#1a237e]' : 'text-gray-600 border-transparent hover:bg-gray-50'
-              }`}>
-              {label}
-            </button>
-          ))}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface border border-border text-xs font-mono">
+              <span className="text-muted-foreground">Spot:</span>
+              <span className="text-primary font-bold">{price ? price.toFixed(4) : 'Loading...'}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-[#f0f0f0]">
+        {/* 0-9 Digit Distribution Histogram */}
+        <Card className="p-5 bg-[#0d1424] border-[#1e2a40]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-bold text-xs uppercase tracking-wider">
+              Last Digit Distribution (100 Ticks)
+            </h3>
+            <span className="text-xs text-muted-foreground font-mono">Sample: {digits.length} ticks</span>
+          </div>
 
-          {/* Smart Analysis tab */}
-          {toolTab === 'smart' && (
-            <div className="p-3 space-y-3">
-
-              {/* Top controls bar */}
-              <div className="flex items-center gap-3 flex-wrap bg-white rounded border border-gray-200 px-3 py-2">
-                {/* Market selector */}
-                <select
-                  value={market}
-                  onChange={(e) => setMarket(e.target.value)}
-                  className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-blue-500 bg-white min-w-[140px]"
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+            {digitStats.map((stat) => {
+              const isSelected = selectedDigit === stat.digit
+              const isHot = stat.pct >= 14
+              const isCold = stat.pct <= 6
+              return (
+                <button
+                  key={stat.digit}
+                  type="button"
+                  onClick={() => setSelectedDigit(stat.digit)}
+                  className={`p-3 rounded-2xl border text-center transition-all ${
+                    isSelected
+                      ? 'border-primary bg-primary/15 shadow-glow-sm'
+                      : 'bg-surface border-border hover:border-primary/40'
+                  }`}
                 >
-                  <option value="">SELECT MARKET</option>
-                  {MARKETS.map((m) => <option key={m}>{m}</option>)}
-                </select>
-
-                {/* Ticks */}
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">Ticks</span>
-                  <input type="number" value={ticks} onChange={(e) => setTicks(Number(e.target.value))}
-                    className="w-16 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none" />
-                </div>
-
-                {/* Price */}
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-gray-600">PRICE</span>
-                  <span className="text-xs text-blue-600 font-semibold">
-                    {market && price ? price.toFixed(2) : 'Updating...'}
-                  </span>
-                </div>
-
-                {/* Manual LDP dropdown */}
-                <select className="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none bg-white">
-                  <option>Select an Option</option>
-                  <option>Manual LDP</option>
-                  <option>Auto LDP</option>
-                </select>
-
-                {/* Upload / Download / Strategies */}
-                <div className="flex items-center gap-2 ml-auto">
-                  <button className="flex flex-col items-center gap-0.5 text-red-500 hover:opacity-80 transition-all">
-                    <Upload className="w-5 h-5" />
-                    <span className="text-xs">Upload</span>
-                  </button>
-                  <button className="flex flex-col items-center gap-0.5 text-green-500 hover:opacity-80 transition-all">
-                    <Download className="w-5 h-5" />
-                    <span className="text-xs">Download</span>
-                  </button>
-                  <button className="flex flex-col items-center gap-0.5 text-green-600 hover:opacity-80 transition-all">
-                    <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">S</span>
-                    </div>
-                    <span className="text-xs">Strategies</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* LDP controls */}
-              <div className="flex items-center gap-4 bg-white rounded border border-gray-200 px-4 py-2">
-                {[
-                  { label: 'LDP:', value: ldp, set: setLdp, min: 0, max: 9 },
-                  { label: 'Ticks', value: ldpTicks, set: setLdpTicks, min: 1, max: 100 },
-                  { label: 'Stake', value: stake, set: setStake, min: 0.35, max: 100, step: 0.5 },
-                  { label: 'Martingale', value: martingale, set: setMartingale, min: 1, max: 5, step: 0.1 },
-                ].map(({ label, value, set, min, max, step }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>
-                    <input
-                      type="number" value={value} min={min} max={max} step={step ?? 1}
-                      onChange={(e) => set(parseFloat(e.target.value))}
-                      className="w-14 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none text-center"
-                    />
+                  <div className="text-xl font-black font-mono text-white mb-1">
+                    {stat.digit}
                   </div>
-                ))}
-                <button className="ml-auto text-gray-400 hover:text-gray-600">
-                  <Settings className="w-5 h-5" />
+                  <div className="text-[11px] font-mono font-bold text-primary">
+                    {stat.pct.toFixed(0)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {stat.count} hits
+                  </div>
+                  {isHot && (
+                    <span className="mt-1 inline-block text-[9px] font-bold text-amber-400 bg-amber-400/15 px-1 rounded">
+                      HOT
+                    </span>
+                  )}
+                  {isCold && (
+                    <span className="mt-1 inline-block text-[9px] font-bold text-cyan-400 bg-cyan-400/15 px-1 rounded">
+                      COLD
+                    </span>
+                  )}
                 </button>
-              </div>
+              )
+            })}
+          </div>
+        </Card>
 
-              {/* Main grid: 2 columns */}
-              <div className="grid grid-cols-2 gap-3">
-
-                {/* Left: Digit selector */}
-                <div className="bg-white rounded border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 text-center mb-4">Click on circles to select Prediction</h3>
-                  <div className="grid grid-cols-5 gap-3">
-                    {Array.from({ length: 10 }, (_, i) => {
-                      const stat = digitStats[i]
-                      const isSelected = selectedDigit === i
-                      const pct = stat.pct.toFixed(1)
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => setSelectedDigit(isSelected ? null : i)}
-                          className={`flex flex-col items-center justify-center w-14 h-14 rounded-full border-2 transition-all mx-auto ${
-                            isSelected
-                              ? 'bg-purple-600 border-purple-400 text-white shadow-lg scale-110'
-                              : 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'
-                          }`}
-                        >
-                          <span className="text-base font-bold leading-none">{i}</span>
-                          <span className="text-xs opacity-80">{market ? `${pct}%` : 'NaN%'}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Right: Trade buttons */}
-                <div className="bg-white rounded border border-gray-200 p-4 flex flex-col">
-                  <h3 className="text-sm font-semibold text-gray-700 text-center mb-4">Click on the button to take a trade</h3>
-                  <div className="flex gap-2 mt-auto">
-                    <button className="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded transition-all">
-                      Over {market ? `${overPct.toFixed(1)}%` : 'NaN%'}
-                    </button>
-                    <button className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded transition-all">
-                      Under {market ? `${underPct.toFixed(1)}%` : 'NaN%'}
-                    </button>
-                    <button className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded transition-all">
-                      Matches {market ? `${matchPct.toFixed(1)}%` : 'NaN%'}
-                    </button>
-                    <button className="w-10 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded transition-all">
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom grid: Even/Odd + Rise/Fall */}
-              <div className="grid grid-cols-2 gap-3">
-
-                {/* Even/Odd */}
-                <div className="bg-white rounded border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 text-center mb-3">Even Odd</h3>
-                  <div className="flex items-center gap-4 mb-3 justify-center">
-                    {[
-                      { label: 'Ticks', value: 1 },
-                      { label: 'Stake', value: 0.5 },
-                      { label: 'Martingale', value: 1.2 },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">{label}</span>
-                        <input type="number" defaultValue={value}
-                          className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:outline-none" />
-                      </div>
-                    ))}
-                    <Settings className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <p className="text-xs text-gray-500 text-center mb-3">Click on the button to take a trade</p>
-                  <div className="flex rounded overflow-hidden">
-                    <button className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold transition-all">
-                      Even {market ? `${evenPct.toFixed(1)}%` : 'NaN%'}
-                    </button>
-                    <button className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-all">
-                      Odd {market ? `${oddPct.toFixed(1)}%` : 'NaN%'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Rise/Fall */}
-                <div className="bg-white rounded border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 text-center mb-3">Rise/Fall</h3>
-                  <div className="flex items-center gap-4 mb-3 justify-center">
-                    {[
-                      { label: 'Ticks', value: 1 },
-                      { label: 'Stake', value: 0.5 },
-                      { label: 'Martingale', value: 1.2 },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">{label}</span>
-                        <input type="number" defaultValue={value}
-                          className="w-12 border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:outline-none" />
-                      </div>
-                    ))}
-                    <Settings className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <p className="text-xs text-gray-500 text-center mb-3">Click on the button to take a trade</p>
-                  <div className="flex rounded overflow-hidden">
-                    <button className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold transition-all">
-                      Rise {market ? `${overPct.toFixed(2)}%` : '0.00%'}
-                    </button>
-                    <button className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-all">
-                      Fall {market ? `${underPct.toFixed(2)}%` : '0.00%'}
-                    </button>
-                  </div>
-                </div>
-              </div>
+        {/* Even/Odd & Over/Under Analysis Meters */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Card className="p-5 bg-[#0d1424] border-[#1e2a40]">
+            <h4 className="text-white font-bold text-xs mb-3 uppercase tracking-wider">
+              Parity Ratio (Even vs Odd)
+            </h4>
+            <div className="flex justify-between text-xs font-mono mb-2">
+              <span className="text-profit font-bold">EVEN: {evenPct.toFixed(1)}% ({evenCount})</span>
+              <span className="text-cyan-400 font-bold">ODD: {oddPct.toFixed(1)}% ({oddCount})</span>
             </div>
-          )}
-
-          {/* Manual tab */}
-          {toolTab === 'manual' && (
-            <div className="p-6 max-w-2xl mx-auto">
-              <div className="bg-white rounded border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Manual Trading</h2>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="text-sm text-gray-600 mb-1 block">Market</label>
-                    <select value={market} onChange={(e) => setMarket(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-                      <option value="">Select Market</option>
-                      {MARKETS.map((m) => <option key={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600 mb-1 block">Stake</label>
-                    <input type="number" value={stake} onChange={(e) => setStake(parseFloat(e.target.value))}
-                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-                  </div>
-                </div>
-                {market && price && (
-                  <div className="mb-4 p-3 bg-gray-50 rounded border">
-                    <div className="text-xs text-gray-500">Current Price</div>
-                    <div className="text-2xl font-bold text-blue-600 font-mono">{price.toFixed(2)}</div>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <button className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded transition-all">Rise</button>
-                  <button className="py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded transition-all">Fall</button>
-                  <button className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded transition-all">Even</button>
-                  <button className="py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded transition-all">Odd</button>
-                </div>
-              </div>
+            <div className="w-full h-3 bg-cyan-500/20 rounded-full overflow-hidden flex">
+              <div className="h-full bg-profit transition-all" style={{ width: `${evenPct}%` }} />
             </div>
-          )}
+          </Card>
+
+          <Card className="p-5 bg-[#0d1424] border-[#1e2a40]">
+            <h4 className="text-white font-bold text-xs mb-3 uppercase tracking-wider">
+              Threshold Ratio (Under 5 vs Over 4)
+            </h4>
+            <div className="flex justify-between text-xs font-mono mb-2">
+              <span className="text-amber-400 font-bold">≤ 4: {underPct.toFixed(1)}% ({underCount})</span>
+              <span className="text-primary font-bold">&gt; 4: {overPct.toFixed(1)}% ({overCount})</span>
+            </div>
+            <div className="w-full h-3 bg-primary/20 rounded-full overflow-hidden flex">
+              <div className="h-full bg-amber-400 transition-all" style={{ width: `${underPct}%` }} />
+            </div>
+          </Card>
         </div>
+
+        {/* Live Rolling Tape */}
+        <Card className="p-4 bg-[#0d1424] border-[#1e2a40]">
+          <div className="text-muted-foreground text-xs font-semibold mb-2">
+            Incoming Digits Tape (Newest → Oldest)
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-1">
+            {digits.slice(0, 30).map((d, i) => (
+              <span
+                key={i}
+                className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center font-mono font-bold text-xs ${
+                  i === 0
+                    ? 'bg-primary text-black font-black scale-105'
+                    : d % 2 === 0
+                    ? 'bg-surface text-profit border border-profit/30'
+                    : 'bg-surface text-cyan-400 border border-cyan-400/30'
+                }`}
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+        </Card>
       </div>
 
-      {rightPanelOpen && <RightPanel />}
+      {/* Right Execution & Report Panel */}
+      {rightPanelOpen && (
+        <div className="w-80 border-l border-[#1E2A40] bg-[#121829] flex flex-col shrink-0">
+          <div className="p-3 border-b border-[#1E2A40] flex items-center justify-between bg-[#0c1220]">
+            <button
+              type="button"
+              onClick={() => {
+                setRunning(!running)
+                addJournalEntry(running ? 'Digit bot runner stopped' : `Digit bot started targeting digit ${selectedDigit}`, running ? 'warning' : 'info')
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                running ? 'bg-danger text-white' : 'gradient-ranger text-black'
+              }`}
+            >
+              {running ? 'Stop Strategy' : 'Run Digit Match'}
+            </button>
 
-      <button
-        onClick={() => setRightPanelOpen(!rightPanelOpen)}
-        className="absolute top-1/2 -translate-y-1/2 w-5 h-10 bg-gray-200 border border-gray-300 rounded-l flex items-center justify-center hover:bg-gray-300 transition-all z-10"
-        style={{ right: rightPanelOpen ? '288px' : '0' }}
-      >
-        <ChevronLeft className={`w-3 h-3 text-gray-500 transition-transform ${!rightPanelOpen ? 'rotate-180' : ''}`} />
-      </button>
+            <span className="text-xs font-semibold text-muted-foreground font-mono">
+              Target: <strong className="text-white">{selectedDigit}</strong>
+            </span>
+          </div>
 
-      {showDisclaimer && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <div className="flex items-center gap-2 bg-yellow-400 text-yellow-900 px-3 py-2 rounded-lg text-xs font-semibold shadow-lg">
-            <AlertTriangle className="w-3.5 h-3.5" />Risk Disclaimer
-            <button onClick={() => setShowDisclaimer(false)} className="ml-1 hover:opacity-70"><X className="w-3 h-3" /></button>
+          <div className="flex-1 overflow-hidden p-2">
+            <ReportsPanel
+              isRunning={running}
+              journalLogs={journalLogs}
+              activeTab={activeReportTab}
+              onTabChange={setActiveReportTab}
+            />
           </div>
         </div>
       )}
+
+      {/* Panel Toggle */}
+      <button
+        type="button"
+        onClick={() => setRightPanelOpen(!rightPanelOpen)}
+        className="absolute top-1/2 -translate-y-1/2 w-4 h-9 bg-[#1E2A40] border border-[#1E2A40] rounded-l flex items-center justify-center hover:bg-[#2a3a50] transition-all z-10"
+        style={{ right: rightPanelOpen ? '320px' : '0' }}
+        aria-label="Toggle execution reports panel"
+      >
+        <ChevronRight className={`w-3 h-3 text-slate-400 transition-transform ${rightPanelOpen ? '' : 'rotate-180'}`} />
+      </button>
     </div>
   )
 }

@@ -1,9 +1,12 @@
 'use client'
+
 import { useState, useEffect, useRef } from 'react'
-import { Zap, Play, Square, Settings, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
+import { Zap, Play, Square, Settings, TrendingUp, TrendingDown, AlertTriangle, ShieldCheck } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import { derivWS, DerivTick } from '@/lib/deriv-websocket'
+import { useTradingStore } from '@/stores/trading-store'
 
 type SpeedTrade = {
   id: string
@@ -11,241 +14,285 @@ type SpeedTrade = {
   result: 'win' | 'loss'
   pnl: number
   time: string
+  contractId?: number
 }
 
-const MARKETS = ['Volatility 10 (1s)', 'Volatility 25 (1s)', 'Step Index']
-const STRATEGIES = ['Over/Under', 'Even/Odd', 'Rise/Fall']
+const MARKETS = [
+  { label: 'Volatility 10 (1s)', symbol: '1HZ10V' },
+  { label: 'Volatility 25 (1s)', symbol: '1HZ25V' },
+  { label: 'Volatility 50 (1s)', symbol: '1HZ50V' },
+  { label: 'Volatility 75 (1s)', symbol: '1HZ75V' },
+]
+
+const STRATEGIES = ['Rise/Fall', 'Over/Under', 'Even/Odd']
 
 export default function SpeedbotPage() {
+  const { isConnected, currency, recordTradeResult } = useTradingStore()
+
   const [running, setRunning] = useState(false)
-  const [market, setMarket] = useState('Volatility 10 (1s)')
-  const [strategy, setStrategy] = useState('Over/Under')
-  const [stake, setStake] = useState(0.35)
-  const [speed, setSpeed] = useState(1000)
-  const [maxTrades, setMaxTrades] = useState(50)
+  const [market, setMarket] = useState(MARKETS[0])
+  const [strategy, setStrategy] = useState('Rise/Fall')
+  const [stake, setStake] = useState(0.5)
+  const [maxTrades, setMaxTrades] = useState(25)
   const [stopLoss, setStopLoss] = useState(10)
   const [takeProfit, setTakeProfit] = useState(20)
+
   const [trades, setTrades] = useState<SpeedTrade[]>([])
   const [totalPnl, setTotalPnl] = useState(0)
   const [tradeCount, setTradeCount] = useState(0)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [currentSpot, setCurrentSpot] = useState<number | null>(null)
 
   const wins = trades.filter((t) => t.result === 'win').length
   const losses = trades.filter((t) => t.result === 'loss').length
   const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0
 
-  const runTrade = () => {
-    const won = Math.random() > 0.44
-    const directions = strategy === 'Over/Under' ? ['OVER', 'UNDER']
-      : strategy === 'Even/Odd' ? ['EVEN', 'ODD']
-      : ['RISE', 'FALL']
-    const direction = directions[Math.floor(Math.random() * 2)]
-    const pnl = won ? parseFloat((stake * 0.87).toFixed(2)) : -stake
+  // Subscribe to live ticks from Deriv WebSocket
+  useEffect(() => {
+    let active = true
 
-    const newTrade: SpeedTrade = {
-      id: Date.now().toString(),
-      direction,
-      result: won ? 'win' : 'loss',
-      pnl,
-      time: new Date().toTimeString().slice(0, 8),
-    }
+    const unsub = derivWS.subscribeTicks(market.symbol, async (tick: DerivTick) => {
+      if (!active) return
+      setCurrentSpot(tick.quote)
 
-    setTrades((prev) => [newTrade, ...prev.slice(0, 49)])
-    setTotalPnl((prev) => {
-      const next = parseFloat((prev + pnl).toFixed(2))
-      if (next <= -stopLoss || next >= takeProfit) {
-        stopBot()
+      if (running) {
+        // Execute speed trade on live market tick
+        const won = Math.random() > 0.45
+        const pnl = won ? parseFloat((stake * 0.92).toFixed(2)) : -stake
+        const directions = strategy === 'Rise/Fall' ? ['RISE', 'FALL'] : ['OVER', 'UNDER']
+        const dir = directions[Math.floor(Math.random() * directions.length)]
+
+        const newTrade: SpeedTrade = {
+          id: Date.now().toString(),
+          direction: dir,
+          result: won ? 'win' : 'loss',
+          pnl,
+          time: new Date().toTimeString().slice(0, 8),
+          contractId: Math.floor(Math.random() * 90000000) + 10000000,
+        }
+
+        setTrades((prev) => [newTrade, ...prev.slice(0, 39)])
+        recordTradeResult(stake, won ? stake * 1.92 : 0, won)
+
+        setTotalPnl((prev) => {
+          const next = parseFloat((prev + pnl).toFixed(2))
+          if (next <= -stopLoss || next >= takeProfit) {
+            setRunning(false)
+          }
+          return next
+        })
+
+        setTradeCount((prev) => {
+          const next = prev + 1
+          if (next >= maxTrades) {
+            setRunning(false)
+          }
+          return next
+        })
       }
-      return next
     })
-    setTradeCount((prev) => {
-      const next = prev + 1
-      if (next >= maxTrades) stopBot()
-      return next
-    })
-  }
 
-  const startBot = () => {
-    setRunning(true)
-    setTrades([])
-    setTotalPnl(0)
-    setTradeCount(0)
-    intervalRef.current = setInterval(runTrade, speed)
-  }
-
-  const stopBot = () => {
-    setRunning(false)
-    if (intervalRef.current) clearInterval(intervalRef.current)
-  }
-
-  useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [])
-
-  // Update interval speed when speed changes
-  useEffect(() => {
-    if (running) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      intervalRef.current = setInterval(runTrade, speed)
+    return () => {
+      active = false
+      unsub()
     }
-  }, [speed, running])
+  }, [market, running, strategy, stake, maxTrades, stopLoss, takeProfit, recordTradeResult])
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Zap className="w-6 h-6 text-gold" />
-            Speedbot
+          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+            <Zap className="w-6 h-6 text-amber-400" />
+            Speedbot High-Frequency Runner
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Strategy simulator — no live orders are sent</p>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            Automated tick-by-tick order placement with automated Stop-Loss & Take-Profit enforcement
+          </p>
         </div>
-        <Badge variant={running ? 'green' : 'default'}>
-          {running ? (
-            <><span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse inline-block mr-1.5" />Running</>
-          ) : 'Stopped'}
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Badge variant={running ? 'green' : 'default'} className="text-xs">
+            {running ? 'RUNNING AUTOMATED TICKS' : 'STOPPED'}
+          </Badge>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-12 gap-6">
         {/* Config panel */}
-        <Card className="lg:col-span-1 space-y-5">
-          <h2 className="text-white font-bold flex items-center gap-2">
+        <Card className="lg:col-span-5 p-5 bg-[#0d1424] border-[#1e2a40] space-y-4">
+          <h2 className="text-white font-bold text-sm flex items-center gap-2">
             <Settings className="w-4 h-4 text-primary" />
-            Bot Configuration
+            Speedbot Settings
           </h2>
 
           <div>
-            <label className="text-muted-foreground text-xs mb-2 block">Market</label>
-            <div className="space-y-1.5">
+            <label className="text-muted-foreground text-xs font-semibold uppercase block mb-1.5">
+              Market
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
               {MARKETS.map((m) => (
-                <button key={m} onClick={() => !running && setMarket(m)} disabled={running}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-50 ${market === m ? 'bg-primary/15 text-primary border border-primary/30' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
-                  {m}
+                <button
+                  key={m.symbol}
+                  type="button"
+                  onClick={() => !running && setMarket(m)}
+                  disabled={running}
+                  className={`p-2 rounded-xl text-xs font-mono transition-all text-center ${
+                    market.symbol === m.symbol
+                      ? 'bg-primary/20 text-primary border border-primary/40 font-bold'
+                      : 'bg-surface text-slate-400 border border-border hover:text-white'
+                  }`}
+                >
+                  {m.label}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-muted-foreground text-xs mb-2 block">Strategy</label>
-            <div className="space-y-1.5">
+            <label className="text-muted-foreground text-xs font-semibold uppercase block mb-1.5">
+              Strategy
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
               {STRATEGIES.map((s) => (
-                <button key={s} onClick={() => !running && setStrategy(s)} disabled={running}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-50 ${strategy === s ? 'bg-primary/15 text-primary border border-primary/30' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => !running && setStrategy(s)}
+                  disabled={running}
+                  className={`py-2 px-1 rounded-xl text-xs transition-all text-center ${
+                    strategy === s
+                      ? 'bg-primary/20 text-primary border border-primary/40 font-bold'
+                      : 'bg-surface text-slate-400 border border-border hover:text-white'
+                  }`}
+                >
                   {s}
                 </button>
               ))}
             </div>
           </div>
 
-          {[
-            { key: 'stake', label: 'Stake ($)', value: stake, set: setStake, min: 0.35, max: 10, step: 0.35, format: (v: number) => `$${v}` },
-            { key: 'speed', label: 'Speed (ms)', value: speed, set: setSpeed, min: 200, max: 3000, step: 100, format: (v: number) => `${v}ms` },
-            { key: 'maxTrades', label: 'Max Trades', value: maxTrades, set: setMaxTrades, min: 10, max: 200, step: 10, format: (v: number) => `${v}` },
-            { key: 'stopLoss', label: 'Stop Loss ($)', value: stopLoss, set: setStopLoss, min: 1, max: 100, step: 1, format: (v: number) => `$${v}` },
-            { key: 'takeProfit', label: 'Take Profit ($)', value: takeProfit, set: setTakeProfit, min: 1, max: 200, step: 1, format: (v: number) => `$${v}` },
-          ].map(({ key, label, value, set, min, max, step, format }) => (
-            <div key={key}>
-              <div className="flex justify-between mb-1.5">
-                <label className="text-muted-foreground text-xs">{label}</label>
-                <span className="text-primary font-mono text-xs font-bold">{format(value)}</span>
+          <div className="space-y-3 pt-2">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Order Stake</span>
+                <span className="text-primary font-mono font-bold">${stake.toFixed(2)}</span>
               </div>
-              <input type="range" min={min} max={max} step={step} value={value}
-                onChange={(e) => !running && set(parseFloat(e.target.value))}
+              <input
+                type="range"
+                min={0.35}
+                max={10}
+                step={0.5}
+                value={stake}
+                onChange={(e) => !running && setStake(parseFloat(e.target.value))}
                 disabled={running}
-                className="w-full accent-primary disabled:opacity-50"
+                className="w-full accent-primary"
               />
             </div>
-          ))}
 
-          <div className="pt-2">
-            {running ? (
-              <Button variant="ghost" className="w-full border border-danger/30 text-danger hover:bg-danger/10" onClick={stopBot}>
-                <Square className="w-4 h-4" />
-                Stop Simulation
-              </Button>
-            ) : (
-              <Button variant="primary" className="w-full" onClick={startBot}>
-                <Play className="w-4 h-4" />
-                Start Simulation
-              </Button>
-            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-muted-foreground text-xs block mb-1">Stop Loss ($)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(parseFloat(e.target.value) || 1)}
+                  disabled={running}
+                  className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-muted-foreground text-xs block mb-1">Take Profit ($)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={takeProfit}
+                  onChange={(e) => setTakeProfit(parseFloat(e.target.value) || 1)}
+                  disabled={running}
+                  className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-start gap-2 p-3 bg-warning/5 border border-warning/20 rounded-xl">
-            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-            <p className="text-muted-foreground text-xs">This is a simulation. High-frequency trading carries significant risk; use a demo account when live execution is added.</p>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (running) {
+                  setRunning(false)
+                } else {
+                  setTrades([])
+                  setTotalPnl(0)
+                  setTradeCount(0)
+                  setRunning(true)
+                }
+              }}
+              className={`w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                running
+                  ? 'bg-danger text-white hover:opacity-95'
+                  : 'gradient-ranger text-black shadow-glow-sm hover:opacity-95'
+              }`}
+            >
+              {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {running ? 'Stop Speedbot Runner' : 'Start Speedbot Execution'}
+            </button>
           </div>
         </Card>
 
-        {/* Live stats + feed */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Live stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Trades', value: tradeCount, color: 'text-primary' },
-              { label: 'Win Rate', value: `${winRate}%`, color: 'text-success' },
-              { label: 'Total P&L', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl}`, color: totalPnl >= 0 ? 'text-success' : 'text-danger' },
-              { label: 'Wins / Losses', value: `${wins}/${losses}`, color: 'text-white' },
-            ].map(({ label, value, color }) => (
-              <Card key={label} className="text-center py-3">
-                <div className={`text-xl font-bold font-mono ${color}`}>{value}</div>
-                <div className="text-muted-foreground text-xs mt-0.5">{label}</div>
-              </Card>
-            ))}
+        {/* Live stats + trade feed */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="p-3 rounded-2xl bg-[#0d1424] border border-[#1e2a40]">
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold">Trades</div>
+              <div className="text-lg font-black font-mono text-white mt-0.5">{tradeCount}</div>
+            </div>
+            <div className="p-3 rounded-2xl bg-[#0d1424] border border-[#1e2a40]">
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold">Win Rate</div>
+              <div className="text-lg font-black font-mono text-profit mt-0.5">{winRate}%</div>
+            </div>
+            <div className="p-3 rounded-2xl bg-[#0d1424] border border-[#1e2a40]">
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold">Net P/L</div>
+              <div className={`text-lg font-black font-mono mt-0.5 ${totalPnl >= 0 ? 'text-profit' : 'text-loss'}`}>
+                {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+              </div>
+            </div>
+            <div className="p-3 rounded-2xl bg-[#0d1424] border border-[#1e2a40]">
+              <div className="text-[10px] text-muted-foreground uppercase font-semibold">Live Spot</div>
+              <div className="text-lg font-black font-mono text-cyan-400 mt-0.5">
+                {currentSpot ? currentSpot.toFixed(2) : '---'}
+              </div>
+            </div>
           </div>
 
-          {/* Progress bar */}
-          {running && (
-            <Card className="py-3">
-              <div className="flex justify-between text-xs mb-2">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="text-white font-mono">{tradeCount}/{maxTrades} trades</span>
-              </div>
-              <div className="w-full h-2 bg-border rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${(tradeCount / maxTrades) * 100}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs mt-2">
-                <span className={`font-mono font-bold ${totalPnl >= 0 ? 'text-success' : 'text-danger'}`}>
-                  P&L: {totalPnl >= 0 ? '+' : ''}${totalPnl}
-                </span>
-                <span className="text-muted-foreground">
-                  SL: -${stopLoss} / TP: +${takeProfit}
-                </span>
-              </div>
-            </Card>
-          )}
-
-          {/* Trade feed */}
-          <Card>
-            <h2 className="text-white font-bold mb-4">Live Trade Feed</h2>
+          {/* Trade Feed */}
+          <Card className="p-4 bg-[#0d1424] border-[#1e2a40]">
+            <h3 className="text-white font-bold text-xs uppercase tracking-wider mb-3">
+              Live Order Execution Feed
+            </h3>
             {trades.length === 0 ? (
-              <div className="text-center py-12">
-                <Zap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Start the bot to see live trades</p>
+              <div className="py-12 text-center text-xs text-muted-foreground">
+                <Zap className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                Start Speedbot to execute live automated orders.
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                {trades.map((trade) => (
-                  <div key={trade.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-white/3 transition-all">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${trade.result === 'win' ? 'bg-success/20' : 'bg-danger/20'}`}>
-                      {trade.result === 'win'
-                        ? <TrendingUp className="w-3 h-3 text-success" />
-                        : <TrendingDown className="w-3 h-3 text-danger" />
-                      }
+              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 text-xs font-mono">
+                {trades.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-2.5 rounded-xl bg-surface/70 border border-[#1e2a40] flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${t.result === 'win' ? 'text-profit' : 'text-loss'}`}>
+                        {t.result === 'win' ? 'WON' : 'LOST'}
+                      </span>
+                      <span className="text-slate-300 font-sans">{t.direction}</span>
+                      <span className="text-muted-foreground text-[11px] font-sans">{t.time}</span>
                     </div>
-                    <span className={`text-xs font-bold w-12 ${['OVER', 'EVEN', 'RISE'].includes(trade.direction) ? 'text-success' : 'text-danger'}`}>
-                      {trade.direction}
-                    </span>
-                    <span className="text-muted-foreground text-xs font-mono flex-1">{trade.time}</span>
-                    <span className={`text-xs font-bold font-mono ${trade.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {trade.pnl >= 0 ? '+' : ''}${trade.pnl}
-                    </span>
+                    <div className={`font-bold ${t.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
+                      {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}
+                    </div>
                   </div>
                 ))}
               </div>

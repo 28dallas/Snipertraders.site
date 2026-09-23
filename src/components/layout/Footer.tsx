@@ -46,22 +46,22 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 overflow-hidden rounded-lg border border-border bg-background">
+            <Link href="/" className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 overflow-hidden rounded-xl border border-primary/30 bg-surface flex items-center justify-center p-1.5 shadow-sm">
                 <Image
-                  src="/img/Free Trading Signals 20260902_133854.jpg"
-                  alt="SmartTraders logo"
-                  width={40}
-                  height={40}
-                  className="h-full w-full object-cover"
+                  src="/img/ranger-logo.svg"
+                  alt="RangerTrader logo"
+                  width={28}
+                  height={28}
+                  className="h-full w-full object-contain"
                 />
               </div>
-              <span className="font-bold text-white text-sm">
-                Smart<span className="text-primary">Traders</span>
+              <span className="font-bold text-white text-base tracking-tight">
+                Ranger<span className="text-primary">Trader</span>
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-              Africa&apos;s #1 Deriv bot builder and copy trading platform.
+              Non-custodial trading companion and direct execution engines for Deriv.
             </p>
             <div className="flex items-center gap-3">
               <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Join Telegram" className="w-8 h-8 rounded-lg bg-border flex items-center justify-center hover:bg-primary/20 hover:text-primary transition-all text-muted-foreground text-xs font-bold">TG</a>
@@ -94,10 +94,10 @@ export default function Footer() {
         <div className="mt-10 pt-6 border-t border-border">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-muted-foreground text-xs">
-              Copyright {new Date().getFullYear()} SmartTraders. All rights reserved.
+              Copyright {new Date().getFullYear()} RangerTrader. All rights reserved.
             </p>
             <p className="text-muted-foreground text-xs text-center md:text-right max-w-xl">
-              <strong className="text-warning">Risk Disclaimer:</strong> Trading involves substantial risk of loss. Past performance is not indicative of future results. Only trade with money you can afford to lose. This platform does not provide financial advice.
+              <strong className="text-warning">Risk Disclaimer:</strong> Trading synthetic indices and financial contracts involves substantial risk of loss. Past performance is not indicative of future results. RangerTrader operates non-custodially via official Deriv APIs and does not provide investment advice.
             </p>
           </div>
         </div>

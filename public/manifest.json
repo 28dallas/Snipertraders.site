@@ -1,0 +1,27 @@
+{
+  "name": "RangerTrader — Deriv Trading Companion",
+  "short_name": "RangerTrader",
+  "description": "Direct-execution Deriv trading companion with bot builder, automated strategy runners, and live market intelligence.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#00d2b4",
+  "icons": [
+    {
+      "src": "/img/ranger-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

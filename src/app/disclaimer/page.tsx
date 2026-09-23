@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 const SECTIONS = [
   {
     title: '1. No Financial Advice',
-    body: 'SmartTraders is a software platform that provides trading tools, automation, signals, and educational content. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. All content is for informational and educational purposes only.',
+    body: 'RangerTrader is a software application providing non-custodial trading companion tools, automation scripts, analytical dashboards, and educational content. Nothing on this platform constitutes financial advice, investment advice, or a recommendation to buy or sell any financial instrument. All content is strictly for informational and educational purposes.',
   },
   {
     title: '2. Trading Risk Warning',
@@ -14,31 +14,31 @@ const SECTIONS = [
   },
   {
     title: '3. Past Performance',
-    body: 'Past performance of any bot, strategy, signal, or copied trader shown on this platform is not indicative of future results. Win rates, ROI figures, and P&L statistics displayed are historical data and do not guarantee similar future performance. Market conditions change constantly and strategies that worked previously may not work in the future.',
+    body: 'Past performance of any bot, strategy, algorithm, or analytical model shown on this platform is not indicative of future results. Win rates, ROI figures, and P&L statistics displayed are historical data and do not guarantee similar future performance. Market conditions change constantly and strategies that worked previously may not work in the future.',
   },
   {
     title: '4. Bot & Automation Risk',
-    body: 'Automated trading bots can execute trades rapidly and may amplify both gains and losses. A bot that performs well in certain market conditions may perform poorly or cause significant losses in different conditions. Always test bots with small stakes before scaling. Monitor your bots regularly — do not leave them running unattended for extended periods.',
+    body: 'Automated trading bots and continuous execution loops can execute trades rapidly and may amplify both gains and losses. A bot that performs well in certain market conditions may cause significant drawdowns in different conditions. Always test bots on Virtual/Demo accounts before deploying live capital. Monitor automated tools actively.',
   },
   {
-    title: '5. Copy Trading Risk',
-    body: 'When you copy a trader, you are mirroring their trading decisions on your own account. The trader you copy may experience losing streaks, change their strategy, or stop trading at any time. SmartTraders does not vet, endorse, or guarantee the performance of any trader on the platform. You are solely responsible for the decision to copy any trader and for the resulting outcomes.',
+    title: '5. Copy Trading Strategy Risk',
+    body: 'When you execute automated strategy templates, you are running rules against live market conditions. Market spikes, connection interruptions, or slippage can impact execution. RangerTrader does not endorse or guarantee the performance of any strategy. You are solely responsible for setting your stake sizes, stop losses, and risk boundaries.',
   },
   {
-    title: '6. Signal Disclaimer',
-    body: 'Trading signals provided on the platform are generated algorithmically based on historical patterns and statistical analysis. They are not guaranteed to be accurate or profitable. Signals should be used as one input in your trading decision — not as the sole basis for placing trades. Always apply your own judgment and risk management.',
+    title: '6. Non-Custodial Architecture',
+    body: 'RangerTrader operates non-custodially: your Deriv authentication token remains within your client browser and connects directly to Deriv’s official WebSocket gateway. RangerTrader does not receive, store, or hold your trading capital.',
   },
   {
-    title: '7. Deriv Platform Risk',
-    body: 'SmartTraders integrates with Deriv via API. We are not affiliated with, endorsed by, or responsible for Deriv\'s platform, pricing, availability, or terms. Any issues with Deriv\'s platform, including outages, pricing changes, or account restrictions, are outside our control.',
+    title: '7. Independent Platform Notice',
+    body: 'RangerTrader is an independent third-party trading companion that interfaces with Deriv via their public API and OAuth protocol. RangerTrader is not affiliated with, officially endorsed by, or responsible for Deriv’s platform, pricing, availability, or execution policies.',
   },
   {
     title: '8. User Responsibility',
-    body: 'You are solely responsible for all trading decisions made using this platform. This includes the choice of bots, stake sizes, risk settings, traders to copy, and signals to act on. SmartTraders provides tools — the decisions and their consequences are yours.',
+    body: 'You are solely responsible for all trading decisions made using this platform. This includes the selection of bots, stake sizes, risk management rules, and execution engines. RangerTrader provides client-side automation tools — the decisions and financial outcomes are exclusively yours.',
   },
   {
     title: '9. Regulatory Notice',
-    body: 'SmartTraders is a software tools provider and is not a licensed financial advisor, broker, or investment manager. We do not hold any financial services license. Users are responsible for ensuring that their trading activities comply with the laws and regulations of their country of residence.',
+    body: 'RangerTrader is a software tools provider and is not a licensed financial advisor, broker, or investment manager. Users are responsible for ensuring that their trading activities comply with the laws and regulations of their jurisdiction.',
   },
 ]
 
@@ -53,8 +53,8 @@ export default function DisclaimerPage() {
           <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-warning mb-6">
             Risk Notice
           </span>
-          <h1 className="text-4xl font-extrabold text-white mb-4">Disclaimer</h1>
-          <p className="text-muted-foreground">Last updated: January 2025</p>
+          <h1 className="text-4xl font-extrabold text-white mb-4">Risk Disclaimer</h1>
+          <p className="text-muted-foreground">Last updated: 2025</p>
         </div>
       </section>
 
@@ -64,7 +64,7 @@ export default function DisclaimerPage() {
           <div>
             <p className="text-warning font-semibold text-sm mb-1">High Risk Warning</p>
             <p className="text-warning/80 text-sm leading-relaxed">
-              Deriv products include CFDs and synthetic indices with a high risk of loss and may not be suitable for all investors. Ensure you understand the risks involved before trading. Only trade with money you can afford to lose completely.
+              Deriv products include synthetic indices and options with a high risk of capital loss and are not suitable for all investors. Ensure you understand all risks before trading. Never trade with capital you cannot afford to lose completely.
             </p>
           </div>
         </div>
@@ -80,11 +80,11 @@ export default function DisclaimerPage() {
 
         <div className="mt-10 bg-card border border-border rounded-xl p-6 text-center">
           <p className="text-muted-foreground text-sm mb-4">
-            By using SmartTraders, you confirm that you have read and understood this disclaimer and accept full responsibility for your trading decisions.
+            By using RangerTrader, you confirm that you have read and understood this disclaimer and accept full responsibility for your trading decisions.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/dashboard/analysis" className="text-primary hover:underline text-sm font-medium">Open Analysis Tools</Link>
-            <Link href="/pricing" className="text-muted-foreground hover:text-white text-sm">View Plans</Link>
+            <Link href="/dashboard" className="text-primary hover:underline text-sm font-medium">Open Trading Dashboard</Link>
+            <Link href="/tools/risk-calculator" className="text-muted-foreground hover:text-white text-sm">Risk Calculator</Link>
           </div>
         </div>
       </div>

@@ -31,8 +31,8 @@ export default function ContactPage() {
               <h2 className="text-xl font-bold text-white mb-6">Contact Channels</h2>
               <div className="space-y-4">
                 {[
-                  { icon: MessageCircle, label: 'Telegram (Fastest)', value: '@PipsDollarPrinterBot', href: 'https://t.me/pipsdollarprinter', color: 'text-blue-400', bg: 'bg-blue-400/10' },
-                  { icon: Mail, label: 'Email Support', value: 'support@smarttraders.com', href: 'mailto:support@smarttraders.com', color: 'text-primary', bg: 'bg-primary/10' },
+                  { icon: MessageCircle, label: 'Telegram (Fastest)', value: '@RangerTraderBot', href: 'https://t.me/rangertrader', color: 'text-blue-400', bg: 'bg-blue-400/10' },
+                  { icon: Mail, label: 'Email Support', value: 'support@rangertrader.com', href: 'mailto:support@rangertrader.com', color: 'text-primary', bg: 'bg-primary/10' },
                   { icon: Phone, label: 'WhatsApp', value: '+254 700 000 000', href: '#', color: 'text-success', bg: 'bg-success/10' },
                 ].map(({ icon: Icon, label, value, href, color, bg }) => (
                   <a key={label} href={href} target="_blank" rel="noopener noreferrer"
