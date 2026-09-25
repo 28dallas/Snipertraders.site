@@ -39,4 +39,7 @@ SniperTraders is a web-based trading execution suite built for Deriv traders. It
    npm run dev
    ```
 
+For the current hosted preview deployment, keep `NEXT_PUBLIC_PREVIEW_MODE=true`.
+Set it to `false` in Vercel only after the signed authentication session and Deriv credentials are configured.
+
 3. Open [http://localhost:3000](http://localhost:3000) and click **Start Trading Now** to authorize with your Deriv account.

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_PATHS = ['/', '/blog', '/pricing', '/about', '/contact', '/affiliate', '/refer', '/terms', '/privacy', '/cookies', '/disclaimer', '/docs', '/comparisons', '/strategies', '/tools', '/auth/login', '/auth/signup', '/auth/deriv/callback']
-const PREVIEW_MODE = process.env.NEXT_PUBLIC_PREVIEW_MODE === 'true' || (process.env.NODE_ENV !== 'production' && !process.env.NEXT_PUBLIC_PREVIEW_MODE)
+// Preview is the current hosted product mode. Set NEXT_PUBLIC_PREVIEW_MODE=false
+// in Vercel when real authentication is ready to become mandatory.
+const PREVIEW_MODE = process.env.NEXT_PUBLIC_PREVIEW_MODE !== 'false'
 
 function decodeBase64Url(value: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
