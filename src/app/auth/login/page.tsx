@@ -144,6 +144,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          <div className="mt-4 border-t border-border pt-4 text-center">
+            <Link href="/dashboard" className="text-sm font-semibold text-primary hover:underline">
+              Continue in preview mode
+            </Link>
+            <p className="mt-1 text-xs text-muted-foreground">Connect Deriv later to enable live account data and trading.</p>
+          </div>
+
           <p className="text-center text-muted-foreground text-sm mt-6">
             Don&apos;t have an account?{' '}
             <Link href="/auth/signup" className="text-primary hover:underline font-medium">

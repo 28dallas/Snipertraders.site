@@ -7,27 +7,15 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, Wrench, Gift,
   TrendingUp, Cpu, Zap, Layers, LineChart, Bolt,
-  BookOpen, Calculator, DollarSign, ArrowUpRight, LogOut
+  BookOpen, Calculator, DollarSign, ArrowUpRight, LogOut, Search
 } from 'lucide-react'
 import { DERIV_CASHIER_DEPOSIT_URL, TELEGRAM_URL, WHATSAPP_URL } from '@/lib/constants'
 import { getDerivSession, clearDerivSession, DerivSession } from '@/lib/deriv-session'
 import { useTradingStore } from '@/stores/trading-store'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
+import { DASHBOARD_NAV } from '@/components/dashboard/dashboard-nav'
 
-const MAIN_NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'D-Trader', href: '/dashboard/d-trader', icon: TrendingUp },
-  { label: 'Bot Builder', href: '/dashboard/bot-builder', icon: Wrench },
-  { label: 'Auto Trader', href: '/dashboard/auto-trader', icon: Cpu },
-  { label: 'Free Bots', href: '/dashboard/my-bots', icon: Gift },
-  { label: 'Bulk Trader', href: '/dashboard/bulk-trader', icon: Layers },
-  { label: 'Charts', href: '/dashboard/charts', icon: LineChart },
-  { label: 'Smart Analysis', href: '/dashboard/smart-analysis', icon: Zap },
-  { label: 'Speedbot', href: '/dashboard/speedbot', icon: Bolt },
-  { label: 'Strategy Pro', href: '/dashboard/strategy-pro', icon: BookOpen },
-  { label: 'AI Software', href: '/dashboard/ai-software', icon: Cpu },
-  { label: 'Reports', href: '/dashboard/reports', icon: LineChart },
-]
+const MAIN_NAV = DASHBOARD_NAV
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -117,6 +105,10 @@ export default function Navbar() {
             </div>
           )}
 
+          <Link href="/dashboard/reports" className="hidden items-center gap-1.5 border-l border-[#1e2a40] px-3 text-xs font-semibold text-slate-300 hover:text-white sm:flex">
+            Reports
+          </Link>
+
           {/* Social Links */}
           <div className="hidden md:flex items-center gap-1 pl-2 border-l border-[#1e2a40]">
             <a
@@ -163,15 +155,6 @@ export default function Navbar() {
           )
         })}
 
-        <div className="mx-2 h-4 w-px bg-border shrink-0" />
-
-        <Link
-          href="/tools/risk-calculator"
-          className="flex items-center gap-1 px-3 h-full text-xs font-medium text-slate-400 hover:text-primary transition-colors whitespace-nowrap"
-        >
-          <Calculator className="w-3.5 h-3.5" />
-          Risk Calc
-        </Link>
       </div>
 
       {/* Mobile Menu Dropdown */}

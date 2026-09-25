@@ -4,6 +4,7 @@ const PUBLIC_PATHS = ['/', '/blog', '/pricing', '/about', '/contact', '/affiliat
 
 const isPublicPath = (pathname: string) => {
   if (pathname === '/') return true
+  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) return true
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 

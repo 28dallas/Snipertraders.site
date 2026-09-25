@@ -151,7 +151,7 @@ export default function AccountHeader() {
               {currency}{' '}
               {balance !== null
                 ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : '10,000.00'}
+                : '--'}
             </span>
           </div>
 

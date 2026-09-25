@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -12,6 +12,7 @@ import { useTradingStore } from '@/stores/trading-store'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import { DASHBOARD_COPY, getDashboardLocale, getGreetingKey } from '@/lib/dashboard-i18n'
 
 const PNL_HISTORY = [
   { day: 'Mon', pnl: 45 },
@@ -36,7 +37,31 @@ export default function DashboardOverview() {
     sessionWins,
     sessionLosses,
     setSelectedBot,
+    locale,
+    setLocale,
   } = useTradingStore()
+
+  const [quoteIndex, setQuoteIndex] = useState(0)
+  const [hour, setHour] = useState(new Date().getHours())
+
+  useEffect(() => {
+    try {
+      const savedLocale = localStorage.getItem('ranger-dashboard-locale')
+      setLocale(getDashboardLocale(savedLocale || navigator.language))
+    } catch {
+      setLocale(getDashboardLocale(navigator.language))
+    }
+    const timer = window.setInterval(() => setHour(new Date().getHours()), 60000)
+    return () => window.clearInterval(timer)
+  }, [setLocale])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setQuoteIndex((index) => (index + 1) % DASHBOARD_COPY[locale].quotes.length), 6000)
+    return () => window.clearInterval(timer)
+  }, [locale])
+
+  const copy = DASHBOARD_COPY[locale]
+  const greeting = copy[getGreetingKey(hour)]
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -136,12 +161,12 @@ export default function DashboardOverview() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Hello, {loginid ? <span className="font-mono text-primary">{loginid}</span> : 'Trader'}
+              {greeting}, {loginid ? <span className="font-mono text-primary">{loginid}</span> : 'Trader'}
             </h1>
             <Badge variant="live">LIVE DERIV API</Badge>
           </div>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">
-            Direct execution trading workstation • Non-custodial WebSocket session
+            {copy.subtitle} {copy.quotes[quoteIndex]}
           </p>
         </div>
 
@@ -209,7 +234,9 @@ export default function DashboardOverview() {
         {[
           {
             label: 'Deriv Balance',
-            value: `${currency} ${(balance ?? 10000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            value: balance === null
+              ? `${currency} --`
+              : `${currency} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             color: 'text-primary',
             badge: isVirtual ? 'DEMO' : 'REAL',
             badgeVariant: isVirtual ? 'yellow' : 'green',

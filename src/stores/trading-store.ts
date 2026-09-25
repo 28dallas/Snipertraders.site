@@ -31,6 +31,7 @@ interface TradingState {
   isVirtual: boolean
   accounts: DerivAccountItem[]
   isConnected: boolean
+  locale: 'en' | 'sw'
 
   // Market & Trading
   activeMarket: string
@@ -57,6 +58,7 @@ interface TradingState {
   initFromSession: () => void
   setAccount: (data: Partial<TradingState>) => void
   setBalance: (balance: number, currency?: string) => void
+  setLocale: (locale: 'en' | 'sw') => void
   switchAccount: (account: DerivAccountItem) => Promise<void>
   logout: () => void
   setActiveMarket: (symbol: string) => void
@@ -92,6 +94,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   isVirtual: true,
   accounts: [],
   isConnected: false,
+  locale: 'en',
 
   activeMarket: '1HZ10V',
   currentPrice: null,
@@ -146,6 +149,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       }
       return { balance, currency: updatedCurrency }
     })
+  },
+
+  setLocale: (locale) => {
+    try {
+      localStorage.setItem('ranger-dashboard-locale', locale)
+    } catch {
+      // Browser storage may be unavailable in preview contexts.
+    }
+    set({ locale })
   },
 
   switchAccount: async (accountItem: DerivAccountItem) => {

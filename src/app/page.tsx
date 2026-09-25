@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowDown, ChevronRight, Maximize, Sun } from 'lucide-react'
-import { getDerivSession } from '@/lib/deriv-session'
-import DerivConnectButton from '@/components/shared/DerivConnectButton'
 
 const TICKERS = [
   ['VOL 10', 'Loading...'], ['VOL 25', 'Loading...'], ['VOL 50', 'Loading...'],
@@ -26,11 +24,9 @@ const STATS = [
 export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [typedText, setTypedText] = useState('')
-  const [hasSession, setHasSession] = useState(false)
   const greeting = useMemo(() => 'Welcome to SniperTraders', [])
 
   useEffect(() => {
-    setHasSession(Boolean(getDerivSession()))
     const loadingTimer = window.setTimeout(() => setLoading(false), 1800)
     let character = 0
     const typingTimer = window.setInterval(() => {
@@ -71,8 +67,8 @@ export default function HomePage() {
       <header className="public-header">
         <Link href="/" aria-label="SniperTraders home"><BrandMark compact /></Link>
         <div className="public-actions">
-          {hasSession ? <Link href="/dashboard" className="public-login">Open Dashboard <ChevronRight /></Link> : <DerivConnectButton showIcon={false} className="public-login">Login Now <ChevronRight /></DerivConnectButton>}
-          {!hasSession && <Link href="/auth/signup" className="public-signup">Sign Up</Link>}
+          <Link href="/dashboard" className="public-login">Open Dashboard <ChevronRight /></Link>
+          <Link href="/auth/signup" className="public-signup">Sign Up</Link>
         </div>
       </header>
       <div className="market-ticker" aria-label="Live market prices">
