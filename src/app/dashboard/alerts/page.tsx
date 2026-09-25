@@ -1,9 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageCircle, Send, CheckCircle, Copy } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import { readClientState, writeClientState } from '@/lib/client-persistence'
+import { persistAlertPreferences } from '@/lib/persistence'
 
 const BOT_LINK = 'https://t.me/SniperTradersBot'
 
@@ -14,6 +16,8 @@ const ALERT_SETTINGS = [
   { key: 'on_loss', label: 'On Loss', sub: 'Alert only on losing trades' },
   { key: 'daily_summary', label: 'Daily Summary', sub: 'Receive a daily P&L summary at midnight' },
 ]
+
+const DEFAULT_ALERTS = { on_trade_open: true, on_trade_close: true, on_win: true, on_loss: false, daily_summary: true }
 
 export default function AlertsPage() {
   const [connected, setConnected] = useState(false)
@@ -29,17 +33,41 @@ export default function AlertsPage() {
     daily_summary: true,
   })
 
+  useEffect(() => {
+    const saved = readClientState('ranger-telegram-alerts', { connected: false, chatId: '', alerts: DEFAULT_ALERTS })
+    setConnected(saved.connected)
+    setChatId(saved.chatId)
+    setAlerts(saved.alerts)
+  }, [])
+
   const handleConnect = () => {
-    if (chatId.trim()) setConnected(true)
+    if (chatId.trim()) {
+      setConnected(true)
+      const preferences = { connected: true, chatId: chatId.trim(), alerts }
+      writeClientState('ranger-telegram-alerts', preferences)
+      void persistAlertPreferences(preferences)
+    }
   }
 
-  const handleTestAlert = () => {
+  const handleTestAlert = async () => {
     setTesting(true)
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/alerts/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId,
+          message: 'SniperTraders test alert: Telegram delivery is connected.',
+        }),
+      })
+      if (!response.ok) throw new Error('Telegram delivery failed')
       setTesting(false)
       setTestSent(true)
       setTimeout(() => setTestSent(false), 3000)
-    }, 1500)
+    } catch {
+      setTesting(false)
+      setTestSent(false)
+    }
   }
 
   const handleCopy = () => {
@@ -49,7 +77,17 @@ export default function AlertsPage() {
   }
 
   const toggleAlert = (key: string) => {
-    setAlerts((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))
+    setAlerts((prev) => {
+      const next = { ...prev, [key]: !prev[key as keyof typeof prev] }
+      writeClientState('ranger-telegram-alerts', { connected, chatId, alerts: next })
+      return next
+    })
+  }
+
+  const saveAlertSettings = () => {
+    const preferences = { connected, chatId, alerts }
+    writeClientState('ranger-telegram-alerts', preferences)
+    void persistAlertPreferences(preferences)
   }
 
   return (
@@ -90,7 +128,7 @@ export default function AlertsPage() {
                 <Send className="w-4 h-4" />
                 {testing ? 'Sending...' : testSent ? '✓ Sent!' : 'Send Test Alert'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConnected(false)}>
+              <Button variant="ghost" size="sm" onClick={() => { setConnected(false); writeClientState('ranger-telegram-alerts', { connected: false, chatId, alerts }) }}>
                 Disconnect
               </Button>
             </div>
@@ -156,7 +194,7 @@ export default function AlertsPage() {
             </div>
           ))}
         </div>
-        {connected && <Button variant="primary" className="mt-5">Save Alert Settings</Button>}
+        {connected && <Button variant="primary" className="mt-5" onClick={saveAlertSettings}>Save Alert Settings</Button>}
       </Card>
 
       {/* Sample preview */}

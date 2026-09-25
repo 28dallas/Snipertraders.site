@@ -210,7 +210,7 @@ export default function FreeBotsPage() {
           >
             <div>
               <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="text-white font-bold text-sm leading-snug">{bot.name}</h3>
+                <div><div className="mb-1 text-[9px] font-black uppercase tracking-wider text-primary">AUTO</div><h3 className="text-white font-bold text-sm leading-snug">{bot.name}</h3></div>
                 <Badge
                   variant={
                     bot.recommendedRisk === 'Low' ? 'green' : bot.recommendedRisk === 'Medium' ? 'yellow' : 'red'
@@ -259,7 +259,7 @@ export default function FreeBotsPage() {
                 className="py-2 px-3 rounded-xl bg-primary text-black font-bold text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all shadow-glow-sm"
               >
                 <Play className="w-3.5 h-3.5" />
-                Auto Trader
+                Run Bot
               </button>
             </div>
           </Card>

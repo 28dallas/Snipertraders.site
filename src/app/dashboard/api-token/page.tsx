@@ -1,9 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Key, Eye, EyeOff, CheckCircle, AlertTriangle, Copy, Trash2, Plus, ExternalLink, MessageCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import { derivWS } from '@/lib/deriv-websocket'
+import { clearDerivSession, getDerivSession, saveDerivSession } from '@/lib/deriv-session'
+import { useTradingStore } from '@/stores/trading-store'
 
 type TokenEntry = {
   id: string
@@ -16,19 +19,6 @@ type TokenEntry = {
   created: string
 }
 
-const MOCK_TOKENS: TokenEntry[] = [
-  {
-    id: '1',
-    name: 'Main Trading Account',
-    token: 'a1-xxxxxxxxxxxxxxxxxxxx',
-    scopes: ['read', 'trade', 'payments'],
-    account: 'CR1234567',
-    balance: 'USD 245.80',
-    connected: true,
-    created: '2024-01-15',
-  },
-]
-
 const SCOPES = [
   { key: 'read', label: 'Read', desc: 'View account info and trade history', required: true },
   { key: 'trade', label: 'Trade', desc: 'Open and close trades on your behalf', required: true },
@@ -37,39 +27,81 @@ const SCOPES = [
 ]
 
 export default function APITokenPage() {
-  const [tokens, setTokens] = useState(MOCK_TOKENS)
+  const { setAccount, logout } = useTradingStore()
+  const [tokens, setTokens] = useState<TokenEntry[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [newToken, setNewToken] = useState('')
   const [newName, setNewName] = useState('')
   const [showToken, setShowToken] = useState<Record<string, boolean>>({})
   const [verifying, setVerifying] = useState(false)
   const [copied, setCopied] = useState('')
+  const [error, setError] = useState('')
 
-  const handleAddToken = () => {
+  useEffect(() => {
+    const session = getDerivSession()
+    if (!session) return
+    setTokens([{
+      id: session.account,
+      name: 'Connected Deriv Account',
+      token: session.token,
+      scopes: ['read', 'trade'],
+      account: session.account,
+      balance: `${session.currency || 'USD'} ${Number(session.balance ?? 0).toFixed(2)}`,
+      connected: true,
+      created: session.createdAt.slice(0, 10),
+    }])
+  }, [])
+
+  const handleAddToken = async () => {
     if (!newToken.trim() || !newName.trim()) return
     setVerifying(true)
-    setTimeout(() => {
-      setTokens((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          name: newName,
-          token: newToken,
-          scopes: ['read', 'trade'],
-          account: 'CR' + Math.floor(Math.random() * 9000000 + 1000000),
-          balance: 'USD ' + (Math.random() * 500).toFixed(2),
-          connected: true,
-          created: new Date().toISOString().slice(0, 10),
-        },
-      ])
+    setError('')
+    try {
+      const response = await derivWS.authorize(newToken.trim())
+      const account = response?.authorize
+      if (!account?.loginid) throw new Error('Deriv did not return a valid account')
+      saveDerivSession({
+        account: account.loginid,
+        loginid: account.loginid,
+        token: newToken.trim(),
+        balance: Number(account.balance ?? 0),
+        currency: account.currency || 'USD',
+        is_virtual: Boolean(account.is_virtual),
+        createdAt: new Date().toISOString(),
+      })
+      setAccount({
+        loginid: account.loginid,
+        token: newToken.trim(),
+        balance: Number(account.balance ?? 0),
+        currency: account.currency || 'USD',
+        isVirtual: Boolean(account.is_virtual),
+        isConnected: true,
+      })
+      setTokens([{
+        id: account.loginid,
+        name: newName.trim(),
+        token: newToken.trim(),
+        scopes: ['read', 'trade'],
+        account: account.loginid,
+        balance: `${account.currency || 'USD'} ${Number(account.balance ?? 0).toFixed(2)}`,
+        connected: true,
+        created: new Date().toISOString().slice(0, 10),
+      }])
       setVerifying(false)
       setShowAddForm(false)
       setNewToken('')
       setNewName('')
-    }, 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not verify the Deriv token')
+      setVerifying(false)
+    }
   }
 
-  const handleDelete = (id: string) => setTokens((prev) => prev.filter((t) => t.id !== id))
+  const handleDelete = (id: string) => {
+    setTokens((prev) => prev.filter((t) => t.id !== id))
+    clearDerivSession()
+    logout()
+  }
 
   const handleCopy = (token: string, id: string) => {
     navigator.clipboard.writeText(token)
@@ -127,6 +159,7 @@ export default function APITokenPage() {
       {showAddForm && (
         <Card className="border-primary/30">
           <h2 className="text-white font-bold mb-4">Add New API Token</h2>
+          {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="text-white text-sm font-medium mb-1.5 block">Token Name</label>

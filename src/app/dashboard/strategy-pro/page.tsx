@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookOpen, ShieldCheck, Play, Wrench, Sparkles, Check, ArrowRight, Layers } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { useTradingStore, BotDefinition } from '@/stores/trading-store'
+import { derivWS, DerivTick } from '@/lib/deriv-websocket'
 
 interface ProStrategyItem {
   id: string
@@ -99,6 +100,32 @@ const PRO_STRATEGIES: ProStrategyItem[] = [
 export default function StrategyProPage() {
   const router = useRouter()
   const { setSelectedBot } = useTradingStore()
+  const [marketPrice, setMarketPrice] = useState<number | null>(null)
+  const [signal, setSignal] = useState<'CALL' | 'PUT'>('CALL')
+  const [strategyMarket, setStrategyMarket] = useState('1HZ75V')
+  const [strategyName, setStrategyName] = useState('Momentum Shield')
+  const [stake, setStake] = useState(0.5)
+  const [takeProfit, setTakeProfit] = useState(5)
+  const [stopLoss, setStopLoss] = useState(3)
+  const [martingale, setMartingale] = useState(false)
+  const [tradeLog, setTradeLog] = useState<string[]>([])
+  const [running, setRunning] = useState(false)
+  const previousPrice = useRef<number | null>(null)
+
+  useEffect(() => {
+    previousPrice.current = null
+    const unsubscribe = derivWS.subscribeTicks(strategyMarket, (tick: DerivTick) => {
+      setSignal(tick.quote >= (previousPrice.current ?? tick.quote) ? 'CALL' : 'PUT')
+      previousPrice.current = tick.quote
+      setMarketPrice(tick.quote)
+    })
+    return unsubscribe
+  }, [strategyMarket])
+
+  const startStrategy = () => {
+    setRunning((current) => !current)
+    setTradeLog((previous) => [`${new Date().toLocaleTimeString()} ${signal} signal queued at ${marketPrice?.toFixed(2) ?? '--'}`, ...previous].slice(0, 8))
+  }
 
   const handleDeploy = (strat: ProStrategyItem, destination: 'auto' | 'builder') => {
     const botDef: BotDefinition = {
@@ -124,6 +151,20 @@ export default function StrategyProPage() {
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+        <Card className="border-[#1e2a40] bg-[#0d1424] p-5">
+          <div className="mb-4 flex items-center justify-between"><div><div className="text-xs uppercase tracking-wider text-muted-foreground">Live price ticker</div><div className="mt-1 font-mono text-3xl font-black text-white">{marketPrice?.toFixed(2) ?? '--'}</div></div><Badge variant={signal === 'CALL' ? 'green' : 'red'}>{signal}</Badge></div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-[11px] text-muted-foreground">Market<select value={strategyMarket} onChange={(event) => setStrategyMarket(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-2 text-xs text-white"><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ50V">Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option></select></label>
+            <label className="text-[11px] text-muted-foreground">Strategy<select value={strategyName} onChange={(event) => setStrategyName(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-2 text-xs text-white"><option>Momentum Shield</option><option>Digit Over/Under</option><option>Parity Matrix</option></select></label>
+            <label className="text-[11px] text-muted-foreground">Stake<input type="number" min="0.35" step="0.05" value={stake} onChange={(event) => setStake(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-2 text-xs text-white" /></label>
+            <label className="text-[11px] text-muted-foreground">Take profit<input type="number" min="0" value={takeProfit} onChange={(event) => setTakeProfit(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-2 text-xs text-white" /></label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs"><label className="flex items-center gap-2 text-slate-300"><input type="checkbox" checked={martingale} onChange={(event) => setMartingale(event.target.checked)} className="accent-primary" />Martingale</label>{martingale && <span className="text-muted-foreground">Multiplier <input type="number" min="1" step="0.1" defaultValue="1.5" className="ml-1 w-16 rounded border border-border bg-surface px-2 py-1 text-white" /></span>}<label className="text-muted-foreground">Stop loss <input type="number" min="0" value={stopLoss} onChange={(event) => setStopLoss(Number(event.target.value))} className="ml-1 w-16 rounded border border-border bg-surface px-2 py-1 text-white" /></label><span className="text-amber-300">Risk guard limits loss to configured stop.</span></div>
+          <button type="button" onClick={startStrategy} className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black ${running ? 'bg-rose-500 text-white' : 'bg-primary text-black'}`}><Play className="h-4 w-4" />{running ? 'Stop strategy' : 'Start strategy preview'}</button>
+        </Card>
+        <Card className="border-[#1e2a40] bg-[#0d1424] p-5"><h3 className="text-sm font-bold text-white">Scanner & trades</h3><p className="mt-1 text-xs text-muted-foreground">{strategyName} is watching {strategyMarket}.</p><div className="mt-4 space-y-2">{tradeLog.length ? tradeLog.map((entry) => <div key={entry} className="rounded-lg border border-border bg-surface p-2 text-[11px] text-slate-300">{entry}</div>) : <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">No trades yet in this session.</div>}</div></Card>
+      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

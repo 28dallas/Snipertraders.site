@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Copy, Bot, AlertTriangle, ShieldCheck, CheckCircle2, ArrowRight, Play, Wrench } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { useTradingStore } from '@/stores/trading-store'
+import { readClientState, writeClientState } from '@/lib/client-persistence'
+import { persistTrackedModels } from '@/lib/persistence'
 
 interface CopyStrategyTemplate {
   id: string
@@ -82,10 +84,17 @@ export default function CopyTradingPage() {
   const { setSelectedBot } = useTradingStore()
   const [following, setFollowing] = useState<string[]>([])
 
+  useEffect(() => {
+    setFollowing(readClientState('ranger-followed-models', []))
+  }, [])
+
   const toggleFollow = (id: string) => {
-    setFollowing((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
+    setFollowing((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      writeClientState('ranger-followed-models', next)
+      void persistTrackedModels(next)
+      return next
+    })
   }
 
   const deployToBuilder = (strat: CopyStrategyTemplate) => {

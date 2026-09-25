@@ -94,7 +94,7 @@ function CallbackContent() {
         const authRes = await derivWS.authorize(primaryAccount.token)
 
         const authData = authRes?.authorize
-        const balance = authData?.balance ?? 10000
+        const balance = Number(authData?.balance ?? 0)
         const currency = authData?.currency || primaryAccount.currency
         const isVirtual = Boolean(authData?.is_virtual ?? primaryAccount.isVirtual)
         const loginid = authData?.loginid || primaryAccount.account

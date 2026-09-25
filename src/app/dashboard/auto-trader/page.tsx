@@ -101,22 +101,25 @@ function AutoTraderContent() {
             if (pid) {
               const buyRes = await derivWS.buy(pid, askPrice)
               const cid = buyRes?.buy?.contract_id
+              if (!cid) throw new Error('Deriv did not return a contract ID')
               addJournalEntry(`Deriv Contract #${cid} opened! Stake $${activeBot.stake}`, 'info')
-
-              setTimeout(() => {
-                const won = Math.random() > 0.44
-                recordTradeResult(activeBot.stake, won ? payout : 0, won)
+              const unsubscribeContract = derivWS.subscribeContract(cid, (contract) => {
+                const settled = contract.is_sold === 1 || ['won', 'lost', 'sold'].includes(String(contract.status))
+                if (!settled) return
+                const settledPayout = Number(contract.payout ?? 0)
+                const profit = Number(contract.profit ?? settledPayout - activeBot.stake)
+                const won = String(contract.status) === 'won' || profit > 0
+                recordTradeResult(activeBot.stake, settledPayout, won)
                 addJournalEntry(
-                  won ? `Contract #${cid} WON! Payout: +$${payout.toFixed(2)}` : `Contract #${cid} LOST`,
+                  won ? `Contract #${cid} WON! Payout: +$${settledPayout.toFixed(2)}` : `Contract #${cid} LOST`,
                   won ? 'success' : 'warning'
                 )
-              }, 1500)
+                unsubscribeContract()
+              })
             }
           } catch (err) {
-            // Local fallback simulation
-            const won = Math.random() > 0.45
-            recordTradeResult(activeBot.stake, won ? activeBot.stake * 1.92 : 0, won)
-            addJournalEntry(`Order filled (Preview) -> ${won ? 'WIN' : 'LOSS'}`, won ? 'success' : 'warning')
+            addJournalEntry(`Live order failed: ${err instanceof Error ? err.message : 'Deriv API error'}`, 'warning')
+            setRunning(false)
           }
         } else {
           // Simulation when offline

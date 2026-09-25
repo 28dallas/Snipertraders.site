@@ -179,14 +179,16 @@ export default function DTraderPage() {
         // 2. Execute buy
         const buyRes = await derivWS.buy(proposalId, askPrice)
         const contractId = buyRes?.buy?.contract_id
+        if (!contractId) throw new Error('Deriv did not return a contract ID')
 
         setExecutionMessage(`Order placed! Contract ID: #${contractId}`)
 
-        // Simulate wait for ticks outcome
-        setTimeout(() => {
-          const won = Math.random() > 0.44
-          const netPnl = won ? parseFloat((expectedPayout - stake).toFixed(2)) : -stake
-
+        const unsubscribeContract = derivWS.subscribeContract(contractId, (contract) => {
+          const settled = contract.is_sold === 1 || ['won', 'lost', 'sold'].includes(String(contract.status))
+          if (!settled) return
+          const settledPayout = Number(contract.payout ?? 0)
+          const netPnl = Number(contract.profit ?? settledPayout - stake)
+          const won = String(contract.status) === 'won' || netPnl > 0
           setTrades((prev) =>
             prev.map((t) =>
               t.id === tradeId
@@ -195,21 +197,25 @@ export default function DTraderPage() {
                     contractId,
                     result: won ? 'win' : 'loss',
                     pnl: netPnl,
-                    payout: won ? expectedPayout : 0,
+                    payout: settledPayout,
                   }
                 : t
             )
           )
 
           setTotalPnl((prev) => parseFloat((prev + netPnl).toFixed(2)))
-          recordTradeResult(stake, won ? expectedPayout : 0, won)
+          recordTradeResult(stake, settledPayout, won)
           setPlacing(false)
-        }, durationTicks * 1100 + 400)
+          unsubscribeContract()
+        })
 
         return
       } catch (err) {
-        console.warn('[D-Trader] Live buy exception, falling back to simulated execution:', err)
-        setExecutionMessage(`Notice: Execution preview (${err instanceof Error ? err.message : 'API offline'})`)
+        console.warn('[D-Trader] Live buy exception:', err)
+        setTrades((prev) => prev.filter((trade) => trade.id !== tradeId))
+        setExecutionMessage(`Live order failed: ${err instanceof Error ? err.message : 'Deriv API error'}`)
+        setPlacing(false)
+        return
       }
     }
 

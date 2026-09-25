@@ -76,6 +76,12 @@ export default function SmartAnalysisPage() {
       setDigits((prev) => [lastDigit, ...prev.slice(0, 99)])
 
       if (running) {
+        if (isConnected) {
+          if (lastDigit === selectedDigit) {
+            addJournalEntry(`Live signal: target digit ${selectedDigit} hit at ${tick.quote}. No order placed.`, 'info')
+          }
+          return
+        }
         // Evaluate digit match or digit over
         if (lastDigit === selectedDigit) {
           addJournalEntry(`Target digit ${selectedDigit} hit! Spot: ${tick.quote}`, 'success')
@@ -90,7 +96,7 @@ export default function SmartAnalysisPage() {
       active = false
       unsub()
     }
-  }, [selectedMarket, running, selectedDigit, stake, recordTradeResult])
+  }, [selectedMarket, running, selectedDigit, stake, isConnected, recordTradeResult])
 
   // Digit stats calculation
   const digitStats = Array.from({ length: 10 }, (_, i) => {

@@ -5,12 +5,23 @@ import { useSearchParams } from 'next/navigation'
 import {
   Monitor, Play, Square, RotateCcw, ChevronRight, AlertTriangle, X,
   FolderOpen, Save, Wrench, Zap, CheckCircle
+  , Search, Undo2, Redo2, ZoomIn, ZoomOut
 } from 'lucide-react'
 import ReportsPanel, { ReportTab } from '@/components/dashboard/ReportsPanel'
 import { derivWS, DerivTick } from '@/lib/deriv-websocket'
 import { useTradingStore, BotDefinition } from '@/stores/trading-store'
 
 type View = 'home' | 'builder' | 'quick'
+
+const BLOCK_CATEGORIES = {
+  Logics: ['If condition', 'Compare digits', 'And / Or'],
+  'Trade parameters': ['Trade parameters', 'Market selector', 'Stake and duration'],
+  'Purchase conditions': ['Purchase action', 'Buy on signal', 'Trade again'],
+  'Sell conditions': ['Sell when available', 'Take profit', 'Stop loss'],
+  'Restart trading conditions': ['Restart on error', 'Reset after win', 'Trade again'],
+  Analysis: ['Tick analysis', 'Digit frequency', 'Trend direction'],
+  Utility: ['Log message', 'Set variable', 'Notification'],
+} as const
 
 function BotBuilderContent() {
   const searchParams = useSearchParams()
@@ -34,6 +45,12 @@ function BotBuilderContent() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('summary')
   const [journalLogs, setJournalLogs] = useState<Array<{ time: string; text: string; type?: 'info' | 'success' | 'warning' }>>([])
+  const [blockSearch, setBlockSearch] = useState('')
+  const [activeBlockCategory, setActiveBlockCategory] = useState<keyof typeof BLOCK_CATEGORIES>('Trade parameters')
+  const [canvasBlocks, setCanvasBlocks] = useState<string[]>(['Trade parameters', 'Purchase action', 'Trade again'])
+  const [zoom, setZoom] = useState(100)
+  const [history, setHistory] = useState<string[][]>([])
+  const [future, setFuture] = useState<string[][]>([])
 
   // Quick strategy state
   const [quickMarket, setQuickMarket] = useState('1HZ10V')
@@ -54,6 +71,28 @@ function BotBuilderContent() {
   const addJournalEntry = (text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const time = new Date().toTimeString().slice(0, 8)
     setJournalLogs((prev) => [{ time, text, type }, ...prev.slice(0, 49)])
+  }
+
+  const addBlock = (block: string) => {
+    setHistory((previous) => [...previous, canvasBlocks])
+    setFuture([])
+    setCanvasBlocks((previous) => [...previous, block])
+  }
+
+  const undo = () => {
+    const previous = history[history.length - 1]
+    if (!previous) return
+    setFuture((current) => [canvasBlocks, ...current])
+    setCanvasBlocks(previous)
+    setHistory((current) => current.slice(0, -1))
+  }
+
+  const redo = () => {
+    const next = future[0]
+    if (!next) return
+    setHistory((current) => [...current, canvasBlocks])
+    setCanvasBlocks(next)
+    setFuture((current) => current.slice(1))
   }
 
   // Live execution loop when running
@@ -92,23 +131,11 @@ function BotBuilderContent() {
               const buyRes = await derivWS.buy(pid, askPrice)
               const cid = buyRes?.buy?.contract_id
               addJournalEntry(`Order placed #${cid}! Stake: $${quickStake}`, 'success')
-
-              setTimeout(() => {
-                const won = Math.random() > 0.44
-                const returnPayout = won ? payout : 0
-                recordTradeResult(quickStake, returnPayout, won)
-                addJournalEntry(
-                  won ? `Contract #${cid} WON! Payout: +$${payout.toFixed(2)}` : `Contract #${cid} LOST`,
-                  won ? 'success' : 'warning'
-                )
-              }, 1800)
+              addJournalEntry(`Contract #${cid} is awaiting Deriv settlement.`, 'info')
             }
           } catch (err) {
-            // Local fallback simulation
-            const won = Math.random() > 0.45
-            const returnPayout = won ? quickStake * 1.92 : 0
-            recordTradeResult(quickStake, returnPayout, won)
-            addJournalEntry(`Executed trade [Demo mode] -> ${won ? 'WIN (+$0.46)' : 'LOSS (-$0.50)'}`, won ? 'success' : 'warning')
+            addJournalEntry(`Live order failed: ${err instanceof Error ? err.message : 'Deriv API error'}`, 'warning')
+            setRunning(false)
           }
         } else {
           // Simulation when not connected
@@ -244,7 +271,7 @@ function BotBuilderContent() {
           )}
 
           {view === 'builder' && (
-            <div className="p-6 h-full flex flex-col">
+            <div className="p-4 h-full flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <button onClick={() => setView('home')} className="text-primary hover:underline text-xs">
@@ -259,25 +286,25 @@ function BotBuilderContent() {
                 )}
               </div>
 
-              <div className="flex-1 bg-[#121829] border-2 border-dashed border-[#1E2A40] rounded-2xl flex items-center justify-center p-8 text-center">
-                <div>
-                  <div className="w-16 h-16 rounded-2xl bg-surface border border-border flex items-center justify-center mx-auto mb-4 text-3xl">
-                    🧱
-                  </div>
-                  <h4 className="text-white font-bold text-base mb-1">Visual Block Strategy Engine</h4>
-                  <p className="text-muted-foreground text-xs max-w-sm mb-4">
-                    Ready to execute. Hit <strong>Run</strong> in the control panel to execute this strategy against live streaming ticks.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setRunning(!running)}
-                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs transition-all ${
-                      running ? 'bg-danger text-white' : 'gradient-ranger text-black shadow-glow-sm'
-                    }`}
-                  >
-                    {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    {running ? 'Stop Strategy' : 'Run Strategy Now'}
-                  </button>
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#1e2a40] bg-[#121829] p-2">
+                <button type="button" onClick={undo} disabled={!history.length} className="rounded-lg p-2 text-slate-300 hover:bg-white/10 disabled:opacity-30" title="Undo"><Undo2 className="h-4 w-4" /></button>
+                <button type="button" onClick={redo} disabled={!future.length} className="rounded-lg p-2 text-slate-300 hover:bg-white/10 disabled:opacity-30" title="Redo"><Redo2 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setZoom((value) => Math.min(130, value + 10))} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Zoom in"><ZoomIn className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setZoom((value) => Math.max(70, value - 10))} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Zoom out"><ZoomOut className="h-4 w-4" /></button>
+                <span className="text-[10px] font-mono text-slate-500">{zoom}%</span>
+                <span className="ml-auto text-[10px] uppercase tracking-wider text-primary">Drag blocks into the canvas</span>
+              </div>
+
+              <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[190px_minmax(0,1fr)]">
+                <div className="overflow-y-auto rounded-xl border border-[#1e2a40] bg-[#121829] p-2">
+                  <div className="relative mb-2"><Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-slate-500" /><input value={blockSearch} onChange={(event) => setBlockSearch(event.target.value)} placeholder="Search blocks" className="w-full rounded-lg border border-[#1e2a40] bg-[#0d1424] py-2 pl-8 pr-2 text-[10px] text-white outline-none focus:border-primary" /></div>
+                  <div className="space-y-1">{(Object.keys(BLOCK_CATEGORIES) as Array<keyof typeof BLOCK_CATEGORIES>).map((category) => <button key={category} type="button" onClick={() => setActiveBlockCategory(category)} className={`w-full rounded-lg px-2 py-2 text-left text-[10px] font-bold ${activeBlockCategory === category ? 'bg-primary/15 text-primary' : 'text-slate-400 hover:bg-white/5'}`}>{category}</button>)}</div>
+                </div>
+
+                <div className="min-w-0 overflow-auto rounded-xl border-2 border-dashed border-[#1e2a40] bg-[#0d1424] p-3" style={{ fontSize: `${zoom}%` }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const block = event.dataTransfer.getData('text/plain'); if (block) addBlock(block) }}>
+                  <div className="mb-3 text-[10px] uppercase tracking-wider text-slate-500">Strategy canvas</div>
+                  <div className="space-y-2">{canvasBlocks.map((block, index) => <div key={`${block}-${index}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', block)} className="max-w-md cursor-grab rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs text-white shadow-lg active:cursor-grabbing"><div className="flex items-center justify-between"><span className="font-bold">{index + 1}. {block}</span><button type="button" onClick={() => { setHistory((previous) => [...previous, canvasBlocks]); setCanvasBlocks((previous) => previous.filter((_, itemIndex) => itemIndex !== index)) }} className="text-slate-500 hover:text-rose-300" aria-label={`Remove ${block}`}><X className="h-3.5 w-3.5" /></button></div><div className="mt-1 text-[10px] text-slate-400">{block === 'Trade parameters' ? 'Market, contract, interval and restart settings' : block === 'Purchase action' ? 'Purchase action and stake conditions' : 'Continue the strategy flow'}</div></div>)}</div>
+                  {BLOCK_CATEGORIES[activeBlockCategory].filter((block) => block.toLowerCase().includes(blockSearch.toLowerCase())).map((block) => <button key={block} type="button" draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', block)} onClick={() => addBlock(block)} className="mt-3 mr-2 rounded-lg border border-[#2c4860] bg-[#142537] px-3 py-2 text-[10px] font-semibold text-slate-200 hover:border-primary hover:text-primary">+ {block}</button>)}
                 </div>
               </div>
             </div>

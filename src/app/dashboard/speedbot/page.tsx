@@ -41,6 +41,7 @@ export default function SpeedbotPage() {
   const [totalPnl, setTotalPnl] = useState(0)
   const [tradeCount, setTradeCount] = useState(0)
   const [currentSpot, setCurrentSpot] = useState<number | null>(null)
+  const liveTradeInFlight = useRef(false)
 
   const wins = trades.filter((t) => t.result === 'win').length
   const losses = trades.filter((t) => t.result === 'loss').length
@@ -55,6 +56,56 @@ export default function SpeedbotPage() {
       setCurrentSpot(tick.quote)
 
       if (running) {
+        if (isConnected) {
+          if (liveTradeInFlight.current) return
+          liveTradeInFlight.current = true
+          const direction = strategy === 'Rise/Fall' ? 'RISE' : strategy === 'Over/Under' ? 'OVER' : 'EVEN'
+          const contractType = strategy === 'Rise/Fall' ? 'CALL' : strategy === 'Over/Under' ? 'DIGITOVER' : 'DIGITEVEN'
+          try {
+            const proposal = await derivWS.proposal({
+              amount: stake,
+              basis: 'stake',
+              contract_type: contractType,
+              currency: currency || 'USD',
+              duration: 1,
+              duration_unit: 't',
+              symbol: market.symbol,
+              ...(strategy === 'Over/Under' ? { barrier: 3 } : {}),
+            })
+            const proposalId = proposal?.proposal?.id
+            if (!proposalId) throw new Error('Could not obtain trade proposal from Deriv')
+            const buy = await derivWS.buy(proposalId, proposal?.proposal?.ask_price ?? stake)
+            const contractId = buy?.buy?.contract_id
+            if (!contractId) throw new Error('Deriv did not return a contract ID')
+            const unsubscribeContract = derivWS.subscribeContract(contractId, (contract) => {
+              const settled = contract.is_sold === 1 || ['won', 'lost', 'sold'].includes(String(contract.status))
+              if (!settled) return
+              const payout = Number(contract.payout ?? 0)
+              const pnl = Number(contract.profit ?? payout - stake)
+              const won = String(contract.status) === 'won' || pnl > 0
+              setTrades((previous) => [{ id: `${contractId}-${Date.now()}`, direction, result: won ? 'win' : 'loss', pnl, time: new Date().toTimeString().slice(0, 8), contractId }, ...previous.slice(0, 39)])
+              setTradeCount((previous) => {
+                const next = previous + 1
+                if (next >= maxTrades) setRunning(false)
+                return next
+              })
+              setTotalPnl((previous) => {
+                const next = parseFloat((previous + pnl).toFixed(2))
+                if (next <= -stopLoss || next >= takeProfit) setRunning(false)
+                return next
+              })
+              recordTradeResult(stake, payout, won)
+              liveTradeInFlight.current = false
+              unsubscribeContract()
+            })
+          } catch (error) {
+            liveTradeInFlight.current = false
+            setRunning(false)
+            console.warn('[Speedbot] Live order failed:', error)
+          }
+          return
+        }
+
         // Execute speed trade on live market tick
         const won = Math.random() > 0.45
         const pnl = won ? parseFloat((stake * 0.92).toFixed(2)) : -stake
@@ -95,7 +146,7 @@ export default function SpeedbotPage() {
       active = false
       unsub()
     }
-  }, [market, running, strategy, stake, maxTrades, stopLoss, takeProfit, recordTradeResult])
+  }, [market, running, strategy, stake, maxTrades, stopLoss, takeProfit, isConnected, currency, recordTradeResult])
 
   return (
     <div className="space-y-6">

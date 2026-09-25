@@ -53,12 +53,13 @@ export function saveDerivSession(session: DerivSession) {
     // ignore
   }
 
-  if (typeof document === 'undefined') return
-
-  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-  const encoded = encodeURIComponent(payload)
-  document.cookie = `${DERIV_SESSION_COOKIE}=${encoded}; Path=/; Max-Age=604800; SameSite=Lax${secure}`
-  document.cookie = `${LEGACY_DERIV_SESSION_COOKIE}=${encoded}; Path=/; Max-Age=604800; SameSite=Lax${secure}`
+  if (typeof window !== 'undefined') {
+    void fetch('/api/auth/deriv-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account: session.account, createdAt: session.createdAt }),
+    }).catch(() => undefined)
+  }
 }
 
 export function getDerivSessionFromCookieValue(value: string | null | undefined): DerivSession | null {
@@ -101,5 +102,6 @@ export function clearDerivSession() {
   if (typeof document !== 'undefined') {
     document.cookie = `${DERIV_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
     document.cookie = `${LEGACY_DERIV_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
+    void fetch('/api/auth/deriv-session', { method: 'DELETE' }).catch(() => undefined)
   }
 }

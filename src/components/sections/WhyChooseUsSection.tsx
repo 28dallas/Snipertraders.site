@@ -39,7 +39,7 @@ export default function WhyChooseUsSection() {
             </p>
             
             <p className="text-muted-foreground text-base leading-relaxed">
-              Our platform bridges the gap between complex algorithmic trading and everyday convenience. By integrating directly with Deriv's robust API and localized payments like M-Pesa, we make running and building automated trading systems seamless, secure, and accessible to everyone.
+              Our platform bridges the gap between complex algorithmic trading and everyday convenience. By integrating directly with Deriv&apos;s robust API and localized payments like M-Pesa, we make running and building automated trading systems seamless, secure, and accessible to everyone.
             </p>
             
             <div className="pt-2">

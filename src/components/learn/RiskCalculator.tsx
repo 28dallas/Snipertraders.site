@@ -169,7 +169,7 @@ export default function RiskCalculator() {
             )}
             {recovery === 'oscars-grind' && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                Oscar's Grind keeps the stake flat on losses — the sequence below shows what you risk on a losing streak.
+                Oscar&apos;s Grind keeps the stake flat on losses — the sequence below shows what you risk on a losing streak.
               </p>
             )}
           </div>

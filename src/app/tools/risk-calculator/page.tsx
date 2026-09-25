@@ -24,7 +24,7 @@ export default function RiskCalculatorPage() {
             Risk & Stake <span className="gradient-text">Calculator</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            Plan your stakes and compare Martingale, Alembert, and Oscar's Grind recovery sequences before you risk a single dollar.
+            Plan your stakes and compare Martingale, Alembert, and Oscar&apos;s Grind recovery sequences before you risk a single dollar.
             Adjust the sliders to see your potential loss at every level.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function RiskCalculatorPage() {
             <h3 className="text-white font-bold text-base mb-2">What is Martingale?</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
               Martingale is a recovery strategy that multiplies your stake after each loss so that a single win recovers all previous losses plus a
-              profit. It's powerful but risky — a long losing streak can quickly exceed your budget. Use the calculator above to see exactly how fast
+              profit. It&apos;s powerful but risky — a long losing streak can quickly exceed your budget. Use the calculator above to see exactly how fast
               the risk grows.
             </p>
           </div>
@@ -65,8 +65,8 @@ export default function RiskCalculatorPage() {
             </div>
             <h3 className="text-white font-bold text-base mb-2">Safer Alternatives</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Martingale isn't your only option — the calculator now supports <strong className="text-white">Alembert</strong> (adds a fixed
-              unit after losses) and <strong className="text-white">Oscar's Grind</strong> (stake stays flat on losses). Both grow risk far more
+              Martingale isn&apos;t your only option — the calculator now supports <strong className="text-white">Alembert</strong> (adds a fixed
+              unit after losses) and <strong className="text-white">Oscar&apos;s Grind</strong> (stake stays flat on losses). Both grow risk far more
               slowly and are much safer for beginners.
             </p>
           </div>

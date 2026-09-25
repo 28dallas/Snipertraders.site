@@ -1,9 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { User, Mail, Phone, Lock, Trash2, Link2, Save } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import { readClientState, writeClientState } from '@/lib/client-persistence'
+import { persistProfilePreferences } from '@/lib/persistence'
+
+const DEFAULT_PROFILE = { full_name: 'James Mwangi', email: 'james@example.com', phone: '0712345678' }
+const DEFAULT_NOTIFICATIONS = { email_trades: true, email_weekly: true, push_trades: false }
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState({
@@ -18,7 +23,15 @@ export default function SettingsPage() {
   })
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    setProfile(readClientState('ranger-profile', DEFAULT_PROFILE))
+    setNotifications(readClientState('ranger-notifications', DEFAULT_NOTIFICATIONS))
+  }, [])
+
   const handleSave = () => {
+    writeClientState('ranger-profile', profile)
+    writeClientState('ranger-notifications', notifications)
+    void persistProfilePreferences(profile)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }

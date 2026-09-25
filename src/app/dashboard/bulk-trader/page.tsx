@@ -84,28 +84,30 @@ export default function BulkTraderPage() {
 
           const pid = prop?.proposal?.id
           const askPrice = prop?.proposal?.ask_price ?? m.stake
-          const payout = prop?.proposal?.payout ?? m.stake * 1.95
-
           if (pid) {
             const buyRes = await derivWS.buy(pid, askPrice)
             const cid = buyRes?.buy?.contract_id
-
-            // Simulate outcome after duration
-            setTimeout(() => {
-              const won = Math.random() > 0.44
-              const net = won ? payout - m.stake : -m.stake
-              recordTradeResult(m.stake, won ? payout : 0, won)
+            if (!cid) throw new Error('Deriv did not return a contract ID')
+            const unsubscribeContract = derivWS.subscribeContract(cid, (contract) => {
+              const settled = contract.is_sold === 1 || ['won', 'lost', 'sold'].includes(String(contract.status))
+              if (!settled) return
+              const settledPayout = Number(contract.payout ?? 0)
+              const net = Number(contract.profit ?? settledPayout - m.stake)
+              const won = String(contract.status) === 'won' || net > 0
+              recordTradeResult(m.stake, settledPayout, won)
               setMarkets((prev) =>
                 prev.map((item) =>
                   item.symbol === m.symbol
-                    ? { ...item, status: 'filled', contractId: cid, pnl: net, payout }
+                    ? { ...item, status: 'filled', contractId: cid, pnl: net, payout: settledPayout }
                     : item
                 )
               )
-            }, m.duration * 1000 + 500)
+              unsubscribeContract()
+            })
 
             return { symbol: m.symbol, success: true, contractId: cid }
           }
+          throw new Error('Could not obtain a live trade proposal')
         }
 
         // Simulated fill when offline / preview

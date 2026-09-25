@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Activity, Play, RefreshCw, Search, ShieldCheck, Target, TrendingDown, TrendingUp } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
+import { derivWS, DerivTick } from '@/lib/deriv-websocket'
 
 type Signal = {
   market: string
@@ -41,8 +42,8 @@ function createSignals(): Signal[] {
       direction,
       confidence,
       streak: 2 + (index % 4),
-      price: (item.base + (Math.random() - 0.5) * 3).toFixed(2),
-      updated: 'just now',
+      price: item.base.toFixed(2),
+      updated: 'waiting for tick',
     }
   })
 }
@@ -51,6 +52,20 @@ export default function ProScannerPage() {
   const [scanning, setScanning] = useState(true)
   const [signals, setSignals] = useState<Signal[]>(createSignals)
   const [filter, setFilter] = useState<'all' | 'CALL' | 'PUT'>('all')
+
+  useEffect(() => {
+    if (!scanning) return undefined
+    const subscriptions = MARKETS.map((market) => derivWS.subscribeTicks(market.symbol, (tick: DerivTick) => {
+      setSignals((current) => current.map((signal) => {
+        if (signal.symbol !== market.symbol) return signal
+        const digit = Number(String(tick.quote).replace('.', '').slice(-1))
+        const direction = digit >= 5 ? 'CALL' : 'PUT'
+        const confidence = 55 + digit * 4
+        return { ...signal, direction, confidence, streak: Math.max(1, digit % 5), price: tick.quote.toFixed(2), updated: 'just now' }
+      }))
+    }))
+    return () => subscriptions.forEach((unsubscribe) => unsubscribe())
+  }, [scanning])
 
   const metrics = METRICS.map((metric) =>
     metric.label === 'Active signals'
@@ -61,12 +76,6 @@ export default function ProScannerPage() {
           ? { ...metric, value: scanning ? 'Live' : 'Paused' }
           : metric,
   )
-
-  useEffect(() => {
-    if (!scanning) return
-    const interval = window.setInterval(() => setSignals(createSignals()), 4000)
-    return () => window.clearInterval(interval)
-  }, [scanning])
 
   const visibleSignals = useMemo(
     () => signals.filter((signal) => filter === 'all' || signal.direction === filter),
