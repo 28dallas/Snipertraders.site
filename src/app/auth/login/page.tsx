@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
@@ -14,6 +14,33 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ email: '', password: '' })
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.includes('access_token') || !hash.includes('refresh_token')) return
+
+    const params = new URLSearchParams(hash.replace(/^#/, ''))
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+
+    if (!accessToken || !refreshToken) return
+
+    const supabase = getSupabaseClient()
+    if (!supabase) return
+
+    void supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    }).then(({ error }) => {
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
+      router.push('/dashboard')
+    })
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
