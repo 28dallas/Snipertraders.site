@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/blog', '/pricing', '/about', '/contact', '/affiliate', '/refer', '/terms', '/privacy', '/cookies', '/disclaimer', '/docs', '/comparisons', '/strategies', '/tools', '/auth/login', '/auth/signup', '/auth/deriv/callback']
+const PUBLIC_PATHS = ['/', '/blog', '/pricing', '/about', '/contact', '/affiliate', '/refer', '/terms', '/privacy', '/cookies', '/disclaimer', '/docs', '/comparisons', '/strategies', '/tools', '/auth/login', '/auth/signup', '/auth/callback', '/auth/deriv/callback']
 // Preview is the current hosted product mode. Set NEXT_PUBLIC_PREVIEW_MODE=false
 // in Vercel when real authentication is ready to become mandatory.
 const PREVIEW_MODE = process.env.NEXT_PUBLIC_PREVIEW_MODE !== 'false'

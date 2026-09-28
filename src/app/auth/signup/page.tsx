@@ -85,17 +85,18 @@ export default function SignupPage() {
   }
 
   const handleGoogle = async () => {
+    setError('')
     const supabase = getSupabaseClient()
     if (!supabase) {
       setError('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
       return
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${appUrl}/dashboard` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/dashboard` },
     })
+    if (error) setError(error.message)
   }
 
   const update = (field: string, value: string) => setForm({ ...form, [field]: value })
