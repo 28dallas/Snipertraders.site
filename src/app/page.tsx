@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowDown, ChevronRight, Maximize, Sun } from 'lucide-react'
+import { ArrowDown, Maximize, Sun } from 'lucide-react'
+import DerivConnectButton from '@/components/shared/DerivConnectButton'
 
 const TICKERS = [
   ['VOL 10', 'Loading...'], ['VOL 25', 'Loading...'], ['VOL 50', 'Loading...'],
@@ -67,7 +68,7 @@ export default function HomePage() {
       <header className="public-header">
         <Link href="/" aria-label="SniperTraders home"><BrandMark compact /></Link>
         <div className="public-actions">
-          <Link href="/dashboard" className="public-login">Open Dashboard <ChevronRight /></Link>
+          <DerivConnectButton className="public-login" label="Login Now" />
           <Link href="/auth/signup" className="public-signup">Sign Up</Link>
         </div>
       </header>
