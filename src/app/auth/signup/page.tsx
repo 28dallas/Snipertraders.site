@@ -64,9 +64,10 @@ export default function SignupPage() {
       return
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${appUrl}/dashboard` },
     })
   }
 

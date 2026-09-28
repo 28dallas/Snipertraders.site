@@ -45,9 +45,10 @@ export default function LoginPage() {
       return
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${appUrl}/dashboard` },
     })
     if (error) setError(error.message)
   }
