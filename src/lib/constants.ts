@@ -39,6 +39,7 @@ export function getDerivOAuthUrl(origin: string, state?: string) {
   const appId = getRequiredDerivAppId()
   const url = new URL('https://oauth.deriv.com/oauth2/authorize')
   url.searchParams.set('app_id', appId)
+  url.searchParams.set('l', 'EN')
   if (DERIV_AFFILIATE_TOKEN) url.searchParams.set('affiliate_token', DERIV_AFFILIATE_TOKEN)
   if (DERIV_CAMPAIGN) url.searchParams.set('utm_campaign', DERIV_CAMPAIGN)
   url.searchParams.set('redirect_uri', `${origin}/auth/deriv/callback`)
