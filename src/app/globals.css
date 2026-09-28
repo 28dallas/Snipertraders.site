@@ -152,12 +152,101 @@ body {
   100% { transform: translateX(-50%); }
 }
 
+@keyframes candleGlow {
+  0%, 100% { opacity: 0.42; filter: brightness(0.95); }
+  50% { opacity: 0.82; filter: brightness(1.2); }
+}
+
+@keyframes candleFloat {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-8px) scaleY(1.03); }
+}
+
 .animate-scroll {
   animation: scroll 35s linear infinite;
 }
 
 .animate-scroll:hover {
   animation-play-state: paused;
+}
+
+.dashboard-shell {
+  position: relative;
+  min-height: calc(100vh - 6rem);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(39, 125, 255, 0.18), transparent 32%),
+    radial-gradient(circle at 90% 80%, rgba(199, 76, 255, 0.15), transparent 28%),
+    linear-gradient(180deg, #040d1b 0%, #071624 100%);
+}
+
+.dashboard-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.dashboard-candles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.95;
+  background:
+    linear-gradient(180deg, rgba(9, 17, 28, 0.2), rgba(9, 17, 28, 0.65)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(8, 145, 178, 0.08) 0,
+      rgba(8, 145, 178, 0.08) 2px,
+      transparent 2px,
+      transparent 24px
+    );
+}
+
+.dashboard-candles::before,
+.dashboard-candles::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat-x;
+  opacity: 0.9;
+}
+
+.dashboard-candles::before {
+  background-image:
+    linear-gradient(90deg, transparent 0 14%, rgba(34, 211, 238, 0.35) 14% 16%, transparent 16% 30%, rgba(45, 212, 191, 0.25) 30% 33%, transparent 33% 52%, rgba(248, 113, 113, 0.28) 52% 55%, transparent 55% 100%);
+  background-size: 100% 100%;
+  filter: blur(0.5px);
+  transform: scaleY(1.05);
+}
+
+.dashboard-candles::after {
+  inset: 12% 0 0;
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(6, 182, 212, 0.18) 12%,
+      rgba(6, 182, 212, 0.08) 30%,
+      transparent 100%
+    );
+  background-size: 100% 100%;
+  animation: candleGlow 9s ease-in-out infinite alternate;
+}
+
+.dashboard-candles .candle {
+  position: absolute;
+  width: 12px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.9), rgba(0, 210, 180, 0.25));
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.18);
+  animation: candleFloat 9s ease-in-out infinite;
 }
 
 .public-home {
