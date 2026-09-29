@@ -19,10 +19,15 @@ function CallbackContent() {
     async function handleAuth() {
       const returnedState = params.get('state')
       const expectedState = sessionStorage.getItem('deriv_oauth_state')
+      const code = params.get('code')
+      const verifier = sessionStorage.getItem('deriv_oauth_verifier')
+      const redirectUri = sessionStorage.getItem('deriv_oauth_redirect_uri')
       window.history.replaceState({}, document.title, '/auth/deriv/callback')
 
       if (expectedState) {
         sessionStorage.removeItem('deriv_oauth_state')
+        sessionStorage.removeItem('deriv_oauth_verifier')
+        sessionStorage.removeItem('deriv_oauth_redirect_uri')
       }
 
       if (expectedState && returnedState !== expectedState) {
@@ -47,7 +52,68 @@ function CallbackContent() {
         return
       }
 
-      // 1. Extract all accounts from query params (acct1, token1, cur1, acct2, token2, cur2...)
+      if (code) {
+        if (!expectedState || !verifier || !redirectUri || returnedState !== expectedState) {
+          setError('Deriv authorization could not be verified. Please start again.')
+          return
+        }
+        try {
+          setStatusMessage('Completing secure Deriv sign-in...')
+          const tokenResponse = await fetch('/api/auth/deriv-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
+          })
+          const tokenData = await tokenResponse.json()
+          if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error || 'Could not complete Deriv sign-in.')
+
+          setStatusMessage('Loading your Deriv accounts...')
+          const accountsResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+            cache: 'no-store',
+          })
+          const accountData = await accountsResponse.json()
+          if (!accountsResponse.ok) throw new Error('Deriv could not load your trading accounts.')
+          const rawAccounts = accountData.data?.accounts || accountData.data || accountData.accounts || []
+          if (!Array.isArray(rawAccounts) || rawAccounts.length === 0) throw new Error('No Deriv trading accounts were returned.')
+
+          const accountsList: DerivAccountItem[] = rawAccounts.map((item: any) => {
+            const id = String(item.account_id || item.id || item.loginid || item.account || '')
+            const type = String(item.account_type || item.type || '').toLowerCase()
+            return {
+              account: id,
+              token: tokenData.access_token,
+              currency: item.currency || item.currency_code || 'USD',
+              isVirtual: type.includes('demo') || type.includes('virtual') || id.startsWith('VRTC'),
+            }
+          }).filter((item: DerivAccountItem) => item.account)
+          if (!accountsList.length) throw new Error('Deriv returned accounts in an unsupported format.')
+
+          const primary = accountsList.find((item) => item.isVirtual) || accountsList[0]
+          const rawPrimary = rawAccounts.find((item: any) => String(item.account_id || item.id || item.loginid || item.account || '') === primary.account)
+          const balance = Number(typeof rawPrimary?.balance === 'object' ? rawPrimary.balance?.amount ?? 0 : rawPrimary?.balance ?? 0)
+          const session: DerivSession = {
+            account: primary.account,
+            token: tokenData.access_token,
+            createdAt: new Date().toISOString(),
+            loginid: primary.account,
+            balance,
+            currency: primary.currency,
+            is_virtual: primary.isVirtual,
+            accounts: accountsList,
+          }
+          await saveDerivSession(session)
+          setAccount({ loginid: primary.account, token: tokenData.access_token, balance, currency: primary.currency, isVirtual: primary.isVirtual, accounts: accountsList, isConnected: true })
+          setStatusMessage('Signed in successfully. Redirecting to your dashboard...')
+          setTimeout(() => router.replace('/dashboard'), 600)
+          return
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Deriv authorization could not be completed.')
+          return
+        }
+      }
+
+      // Legacy OAuth callback support for previously registered Deriv apps.
       const accountsList: DerivAccountItem[] = []
       let idx = 1
       while (params.get(`token${idx}`) && params.get(`acct${idx}`)) {
@@ -110,7 +176,7 @@ function CallbackContent() {
           accounts: accountsList,
         }
 
-        saveDerivSession(sessionPayload)
+        await saveDerivSession(sessionPayload)
         setAccount({
           loginid,
           token: primaryAccount.token,

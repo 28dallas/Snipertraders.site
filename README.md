@@ -25,13 +25,14 @@ SniperTraders is a web-based trading execution suite built for Deriv traders. It
 
 ## Getting Started
 
-1. Set your Deriv App ID in `.env.local`:
+1. Register a Deriv OAuth 2.0 client with the callback URL `${NEXT_PUBLIC_SITE_URL}/auth/deriv/callback`, then set these values in `.env.local`:
    ```bash
+   NEXT_PUBLIC_DERIV_CLIENT_ID=your_deriv_oauth_client_id
    NEXT_PUBLIC_DERIV_APP_ID=your_registered_deriv_app_id
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
-   App ID `1089` is available only as a local development fallback. Production requires an app ID registered to the deployed callback URL.
+   `NEXT_PUBLIC_DERIV_CLIENT_ID` must be configured for the PKCE login. `NEXT_PUBLIC_DERIV_APP_ID` is retained for legacy WebSocket features. Register the production callback URL with Deriv exactly as deployed.
 
 2. Install dependencies and start the dev server:
    ```bash

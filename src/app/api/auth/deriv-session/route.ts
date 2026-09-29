@@ -10,7 +10,11 @@ function sign(value: string, secret: string) {
 
 export async function POST(request: NextRequest) {
   const secret = process.env.DERIV_SESSION_SECRET
-  if (!secret) return NextResponse.json({ error: 'Session signing is not configured' }, { status: 503 })
+  const previewMode = process.env.NEXT_PUBLIC_PREVIEW_MODE !== 'false'
+  if (!secret) {
+    if (previewMode) return NextResponse.json({ ok: true, preview: true })
+    return NextResponse.json({ error: 'Session signing is not configured' }, { status: 503 })
+  }
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body.account !== 'string' || typeof body.createdAt !== 'string') {

@@ -145,7 +145,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const updatedCurrency = currency || state.currency
       const session = getDerivSession()
       if (session) {
-        saveDerivSession({ ...session, balance, currency: updatedCurrency })
+        void saveDerivSession({ ...session, balance, currency: updatedCurrency }).catch(() => undefined)
       }
       return { balance, currency: updatedCurrency }
     })
@@ -181,7 +181,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         is_virtual: isVirtual,
         accounts: get().accounts,
       }
-      saveDerivSession(updatedSession)
+      await saveDerivSession(updatedSession)
 
       set({
         loginid: accountItem.account,

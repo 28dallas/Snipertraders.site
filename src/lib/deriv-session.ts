@@ -45,7 +45,7 @@ function parseSessionString(raw: string | null | undefined): DerivSession | null
   }
 }
 
-export function saveDerivSession(session: DerivSession) {
+export async function saveDerivSession(session: DerivSession) {
   const payload = JSON.stringify(session)
   try {
     sessionStorage.setItem(PRIMARY_KEY, payload)
@@ -54,11 +54,12 @@ export function saveDerivSession(session: DerivSession) {
   }
 
   if (typeof window !== 'undefined') {
-    void fetch('/api/auth/deriv-session', {
+    const response = await fetch('/api/auth/deriv-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account: session.account, createdAt: session.createdAt }),
-    }).catch(() => undefined)
+    })
+    if (!response.ok) throw new Error('Could not establish the SniperTraders login session.')
   }
 }
 

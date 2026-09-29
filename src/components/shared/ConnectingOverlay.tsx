@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { getDerivOAuthUrl } from '@/lib/constants'
+import { startDerivLogin } from '@/lib/deriv-oauth'
 import { ShieldCheck, Zap, Activity } from 'lucide-react'
 
 interface ConnectingOverlayProps {
@@ -35,22 +35,22 @@ export default function ConnectingOverlay({ isOpen, onClose }: ConnectingOverlay
 
     const t1 = setTimeout(() => {
       setProgress(45)
-      setStage('Connecting to Deriv WebSocket (ws.derivws.com)...')
+      setStage('Preparing secure Deriv sign-in...')
     }, 300)
 
     const t2 = setTimeout(() => {
       setProgress(85)
-      setStage('Establishing client-side non-custodial session...')
+      setStage('Creating secure authorization request...')
     }, 700)
 
     const t3 = setTimeout(() => {
       setProgress(100)
       setStage('Redirecting to Deriv OAuth authorization...')
       try {
-        const state = crypto.randomUUID()
-        sessionStorage.setItem('deriv_oauth_state', state)
-        const url = getDerivOAuthUrl(window.location.origin, state)
-        window.location.assign(url)
+        void startDerivLogin().catch((error) => {
+          setConfigurationError(error instanceof Error ? error.message : 'Deriv OAuth is not configured.')
+          setStage('OAuth configuration is incomplete.')
+        })
       } catch (error) {
         setConfigurationError(error instanceof Error ? error.message : 'Deriv OAuth is not configured.')
         setStage('OAuth configuration is incomplete.')
