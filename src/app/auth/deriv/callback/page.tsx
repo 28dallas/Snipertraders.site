@@ -12,14 +12,19 @@ function CallbackContent() {
   const params = useSearchParams()
   const router = useRouter()
   const [error, setError] = useState('')
-  const [statusMessage, setStatusMessage] = useState('Connecting to Deriv WebSocket & authorizing account...')
+  const [statusMessage, setStatusMessage] = useState('Finishing secure Deriv sign-in...')
   const setAccount = useTradingStore((s) => s.setAccount)
 
   useEffect(() => {
     async function handleAuth() {
-      const returnedState = params.get('state')
+      // Deriv OAuth2 returns query parameters. Legacy Deriv OAuth redirects may
+      // return acct/token parameters in the fragment, which Next's searchParams
+      // does not include.
+      const fragmentParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const getParam = (key: string) => params.get(key) ?? fragmentParams.get(key)
+      const returnedState = getParam('state')
       const expectedState = sessionStorage.getItem('deriv_oauth_state')
-      const code = params.get('code')
+      const code = getParam('code')
       const verifier = sessionStorage.getItem('deriv_oauth_verifier')
       const redirectUri = sessionStorage.getItem('deriv_oauth_redirect_uri')
       window.history.replaceState({}, document.title, '/auth/deriv/callback')
@@ -45,9 +50,9 @@ function CallbackContent() {
         console.info('[OAuth Callback] Query parameters:', safeParams)
       }
 
-      const derivError = params.get('error')
+      const derivError = getParam('error')
       if (derivError) {
-        const description = params.get('error_description')
+        const description = getParam('error_description')
         setError(description ? `Deriv authorization failed: ${description}` : `Deriv authorization failed: ${derivError}`)
         return
       }
@@ -99,10 +104,10 @@ function CallbackContent() {
       // Legacy OAuth callback support for previously registered Deriv apps.
       const accountsList: DerivAccountItem[] = []
       let idx = 1
-      while (params.get(`token${idx}`) && params.get(`acct${idx}`)) {
-        const acct = params.get(`acct${idx}`)!
-        const token = params.get(`token${idx}`)!
-        const cur = params.get(`cur${idx}`) || 'USD'
+      while (getParam(`token${idx}`) && getParam(`acct${idx}`)) {
+        const acct = getParam(`acct${idx}`)!
+        const token = getParam(`token${idx}`)!
+        const cur = getParam(`cur${idx}`) || 'USD'
         accountsList.push({
           account: acct,
           token,
@@ -114,20 +119,24 @@ function CallbackContent() {
 
       if (accountsList.length === 0) {
         // Check single token or fallback
-        const singleToken = params.get('token1') || params.get('token')
-        const singleAcct = params.get('acct1') || params.get('acct')
+        const singleToken = getParam('token1') || getParam('token')
+        const singleAcct = getParam('acct1') || getParam('acct')
         if (singleToken && singleAcct) {
           accountsList.push({
             account: singleAcct,
             token: singleToken,
-            currency: params.get('cur1') || 'USD',
+            currency: getParam('cur1') || 'USD',
             isVirtual: singleAcct.startsWith('VRT'),
           })
         }
       }
 
       if (accountsList.length === 0) {
-        setError('Deriv did not return an authorized account token. Please try again.')
+        console.warn('[Deriv OAuth] Callback contained no recognized credentials.', {
+          queryKeys: Array.from(params.keys()),
+          fragmentKeys: Array.from(fragmentParams.keys()),
+        })
+        setError('Deriv returned no authorization code or account token. Check that the OAuth app is configured for this site’s callback URL, then try again.')
         return
       }
 
