@@ -134,7 +134,27 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         error: null,
       })
     } catch (err) {
-      set({ isConnected: false, error: err instanceof Error ? err.message : 'Could not reconnect to Deriv.' })
+      // Older Deriv OAuth callbacks return per-account tokens for the legacy API.
+      try {
+        const accountItem = session.accounts?.find((item) => item.account === (session.loginid || session.account))
+        const token = accountItem?.token || session.token
+        await derivWS.connect()
+        const response = await derivWS.authorize(token)
+        const account = response?.authorize
+        if (!account?.loginid) throw new Error('Deriv did not confirm the saved account.')
+        set({
+          loginid: account.loginid,
+          token,
+          balance: Number(account.balance ?? session.balance ?? 0),
+          currency: account.currency || session.currency || 'USD',
+          isVirtual: Boolean(account.is_virtual ?? session.is_virtual ?? false),
+          accounts: session.accounts || [],
+          isConnected: true,
+          error: null,
+        })
+      } catch (legacyErr) {
+        set({ isConnected: false, error: legacyErr instanceof Error ? legacyErr.message : (err instanceof Error ? err.message : 'Could not reconnect to Deriv.') })
+      }
     }
   },
 

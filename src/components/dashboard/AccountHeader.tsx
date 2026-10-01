@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Wallet, DollarSign, ArrowUpRight, RefreshCw, ChevronDown, Check, ShieldCheck } from 'lucide-react'
 import { useTradingStore } from '@/stores/trading-store'
+import { derivWS } from '@/lib/deriv-websocket'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { DERIV_CASHIER_DEPOSIT_URL, DERIV_CASHIER_WITHDRAW_URL } from '@/lib/constants'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
@@ -45,8 +46,16 @@ export default function AccountHeader() {
       }
     }
     const interval = window.setInterval(() => { void refresh() }, 15000)
+    const unsubscribe = derivWS.isAuthorized
+      ? derivWS.subscribeBalance((balanceData) => {
+          if (balanceData?.balance !== undefined) setBalance(balanceData.balance, balanceData.currency)
+        })
+      : undefined
 
-    return () => window.clearInterval(interval)
+    return () => {
+      window.clearInterval(interval)
+      unsubscribe?.()
+    }
   }, [isConnected, setBalance])
 
   const handleSwitch = async (acc: any) => {

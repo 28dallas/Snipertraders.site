@@ -55,6 +55,7 @@ export class DerivWebSocket {
   private contractSubscriptions = new Map<number, string>()
   private isConnecting = false
   private connectionPromise: Promise<void> | null = null
+  private authorized = false
 
   static getInstance(): DerivWebSocket {
     if (!DerivWebSocket.instance) {
@@ -67,6 +68,10 @@ export class DerivWebSocket {
     return !!this.socket && this.socket.readyState === WebSocket.OPEN
   }
 
+  get isAuthorized(): boolean {
+    return this.authorized && this.isConnected
+  }
+
   connect(): Promise<void> {
     if (this.isConnected) return Promise.resolve()
     if (this.isConnecting && this.connectionPromise) return this.connectionPromise
@@ -76,7 +81,7 @@ export class DerivWebSocket {
 
     this.connectionPromise = new Promise<void>((resolve, reject) => {
       try {
-        this.socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(appId)}`)
+        this.socket = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${encodeURIComponent(appId)}`)
 
         this.socket.onopen = () => {
           this.isConnecting = false
@@ -135,6 +140,7 @@ export class DerivWebSocket {
         this.socket.onclose = () => {
           this.isConnecting = false
           this.connectionPromise = null
+          this.authorized = false
           this.activeSubscriptions.clear()
           this.subscriptionListeners.clear()
           this.contractSubscriptions.clear()
@@ -195,7 +201,10 @@ export class DerivWebSocket {
 
   // Auth & Account
   authorize(token: string) {
-    return this.request({ authorize: token })
+    return this.request({ authorize: token }).then((response) => {
+      this.authorized = Boolean(response?.authorize?.loginid)
+      return response
+    })
   }
 
   balance() {
@@ -331,6 +340,7 @@ export class DerivWebSocket {
     this.contractSubscriptions.clear()
     this.isConnecting = false
     this.connectionPromise = null
+    this.authorized = false
   }
 }
 
