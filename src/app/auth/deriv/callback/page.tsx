@@ -90,20 +90,27 @@ function CallbackContent() {
           if (!accountsList.length) throw new Error('Deriv returned accounts in an unsupported format.')
 
           const primary = accountsList.find((item) => item.isVirtual) || accountsList[0]
+          setStatusMessage('Authorizing your selected account...')
+          await derivWS.connect()
+          const authorization = await derivWS.authorize(primary.token)
+          const authorizedAccount = authorization?.authorize
+          if (!authorizedAccount?.loginid) throw new Error('Deriv could not authorize the selected trading account.')
           const rawPrimary = rawAccounts.find((item: any) => String(item.account_id || item.id || item.loginid || item.account || '') === primary.account)
-          const balance = Number(typeof rawPrimary?.balance === 'object' ? rawPrimary.balance?.amount ?? 0 : rawPrimary?.balance ?? 0)
+          const balance = Number(authorizedAccount.balance ?? (typeof rawPrimary?.balance === 'object' ? rawPrimary.balance?.amount ?? 0 : rawPrimary?.balance ?? 0))
+          const currency = authorizedAccount.currency || primary.currency
+          const loginid = authorizedAccount.loginid
           const session: DerivSession = {
-            account: primary.account,
+            account: loginid,
             token: tokenData.access_token,
             createdAt: new Date().toISOString(),
-            loginid: primary.account,
+            loginid,
             balance,
-            currency: primary.currency,
-            is_virtual: primary.isVirtual,
+            currency,
+            is_virtual: Boolean(authorizedAccount.is_virtual ?? primary.isVirtual),
             accounts: accountsList,
           }
           await saveDerivSession(session)
-          setAccount({ loginid: primary.account, token: tokenData.access_token, balance, currency: primary.currency, isVirtual: primary.isVirtual, accounts: accountsList, isConnected: true })
+          setAccount({ loginid, token: tokenData.access_token, balance, currency, isVirtual: session.is_virtual, accounts: accountsList, isConnected: true })
           setStatusMessage('Signed in successfully. Redirecting to your dashboard...')
           setTimeout(() => router.replace('/dashboard'), 600)
           return

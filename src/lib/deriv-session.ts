@@ -20,6 +20,7 @@ export interface DerivSession {
 
 const PRIMARY_KEY = 'ranger-deriv-session'
 const LEGACY_KEY = 'pips-deriv-session'
+const PERSISTENT_KEY = 'ranger-deriv-session-persistent'
 
 export const DERIV_SESSION_COOKIE = 'ranger_deriv_session'
 export const LEGACY_DERIV_SESSION_COOKIE = 'pips_deriv_session'
@@ -52,6 +53,11 @@ export async function saveDerivSession(session: DerivSession) {
   } catch {
     // ignore
   }
+  try {
+    localStorage.setItem(PERSISTENT_KEY, payload)
+  } catch {
+    // Browser storage may be unavailable in preview contexts.
+  }
 
   if (typeof window !== 'undefined') {
     const response = await fetch('/api/auth/deriv-session', {
@@ -74,7 +80,9 @@ export function hasValidDerivSession(value: string | null | undefined): boolean 
 export function getDerivSession(): DerivSession | null {
   try {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem(PRIMARY_KEY) || sessionStorage.getItem(LEGACY_KEY)
+      const saved = sessionStorage.getItem(PRIMARY_KEY)
+        || localStorage.getItem(PERSISTENT_KEY)
+        || sessionStorage.getItem(LEGACY_KEY)
       if (saved) return JSON.parse(saved) as DerivSession
     }
 
@@ -96,6 +104,7 @@ export function clearDerivSession() {
   try {
     sessionStorage.removeItem(PRIMARY_KEY)
     sessionStorage.removeItem(LEGACY_KEY)
+    localStorage.removeItem(PERSISTENT_KEY)
   } catch {
     // ignore
   }

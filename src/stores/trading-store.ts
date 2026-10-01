@@ -114,25 +114,34 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   copiedStrategies: [],
   error: null,
 
-  initFromSession: () => {
+  initFromSession: async () => {
     const session = getDerivSession()
-    if (session && session.token) {
+    if (!session?.token) return
+
+    const accounts = session.accounts || [{
+      account: session.account,
+      token: session.token,
+      currency: session.currency || 'USD',
+      isVirtual: session.is_virtual ?? session.account.startsWith('VRT'),
+    }]
+
+    try {
+      await derivWS.connect()
+      const auth = await derivWS.authorize(session.token)
+      const account = auth?.authorize
+      if (!account?.loginid) throw new Error('Deriv did not confirm the saved account.')
       set({
-        loginid: session.loginid || session.account,
+        loginid: account.loginid,
         token: session.token,
-        balance: session.balance ?? get().balance ?? 10000,
-        currency: session.currency || 'USD',
-        isVirtual: session.is_virtual ?? session.account.startsWith('VRT'),
-        accounts: session.accounts || [
-          {
-            account: session.account,
-            token: session.token,
-            currency: session.currency || 'USD',
-            isVirtual: session.is_virtual ?? session.account.startsWith('VRT'),
-          },
-        ],
+        balance: Number(account.balance ?? session.balance ?? 0),
+        currency: account.currency || session.currency || 'USD',
+        isVirtual: Boolean(account.is_virtual ?? session.is_virtual ?? session.account.startsWith('VRT')),
+        accounts,
         isConnected: true,
+        error: null,
       })
+    } catch (err) {
+      set({ isConnected: false, error: err instanceof Error ? err.message : 'Could not reconnect to Deriv.' })
     }
   },
 
