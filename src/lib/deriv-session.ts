@@ -5,6 +5,7 @@ export interface DerivAccountItem {
   token: string
   currency: string
   isVirtual: boolean
+  balance?: number
 }
 
 export interface DerivSession {

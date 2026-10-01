@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { LiveMarketSnapshot, OpenTrade, Strategy } from '@/types'
 import { DerivAccountItem, DerivSession, getDerivSession, saveDerivSession, clearDerivSession } from '@/lib/deriv-session'
+import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { derivWS } from '@/lib/deriv-websocket'
 
 export interface BotDefinition {
@@ -118,24 +119,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const session = getDerivSession()
     if (!session?.token) return
 
-    const accounts = session.accounts || [{
-      account: session.account,
-      token: session.token,
-      currency: session.currency || 'USD',
-      isVirtual: session.is_virtual ?? session.account.startsWith('VRT'),
-    }]
-
     try {
-      await derivWS.connect()
-      const auth = await derivWS.authorize(session.token)
-      const account = auth?.authorize
-      if (!account?.loginid) throw new Error('Deriv did not confirm the saved account.')
+      const accounts = await fetchDerivAccounts(session.token)
+      const account = accounts.find((item) => item.account === (session.loginid || session.account))
+      if (!account) throw new Error('Deriv did not return the saved account. Please connect again.')
       set({
-        loginid: account.loginid,
+        loginid: account.account,
         token: session.token,
         balance: Number(account.balance ?? session.balance ?? 0),
         currency: account.currency || session.currency || 'USD',
-        isVirtual: Boolean(account.is_virtual ?? session.is_virtual ?? session.account.startsWith('VRT')),
+        isVirtual: account.isVirtual,
         accounts,
         isConnected: true,
         error: null,
@@ -172,13 +165,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   switchAccount: async (accountItem: DerivAccountItem) => {
     try {
       set({ isLoading: true })
-      // Re-authorize with new account token
-      await derivWS.connect()
-      const authRes = await derivWS.authorize(accountItem.token)
-
-      const balance = authRes?.authorize?.balance ?? 0
-      const currency = authRes?.authorize?.currency ?? accountItem.currency
-      const isVirtual = Boolean(authRes?.authorize?.is_virtual ?? accountItem.isVirtual)
+      const balance = accountItem.balance ?? 0
+      const currency = accountItem.currency
+      const isVirtual = accountItem.isVirtual
 
       const updatedSession: DerivSession = {
         account: accountItem.account,

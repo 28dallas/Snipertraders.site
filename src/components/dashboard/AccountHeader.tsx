@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Wallet, DollarSign, ArrowUpRight, RefreshCw, ChevronDown, Check, ShieldCheck } from 'lucide-react'
 import { useTradingStore } from '@/stores/trading-store'
-import { derivWS } from '@/lib/deriv-websocket'
+import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { DERIV_CASHIER_DEPOSIT_URL, DERIV_CASHIER_WITHDRAW_URL } from '@/lib/constants'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
 
@@ -31,16 +31,22 @@ export default function AccountHeader() {
   useEffect(() => {
     if (!isConnected) return
 
-    // Subscribe to live balance updates via WebSocket
-    const unsub = derivWS.subscribeBalance((balanceData) => {
-      if (balanceData?.balance !== undefined) {
-        setBalance(balanceData.balance, balanceData.currency)
+    // OAuth account balances are retrieved through Deriv's authenticated REST API.
+    const refresh = async () => {
+      const token = useTradingStore.getState().token
+      if (!token) return
+      try {
+        const latest = await fetchDerivAccounts(token)
+        const currentId = useTradingStore.getState().loginid
+        const current = latest.find((account) => account.account === currentId)
+        if (current && current.balance !== undefined) setBalance(current.balance, current.currency)
+      } catch {
+        // Keep the last confirmed balance visible during temporary API failures.
       }
-    })
-
-    return () => {
-      unsub()
     }
+    const interval = window.setInterval(() => { void refresh() }, 15000)
+
+    return () => window.clearInterval(interval)
   }, [isConnected, setBalance])
 
   const handleSwitch = async (acc: any) => {

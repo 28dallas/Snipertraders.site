@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { DerivAccountItem, DerivSession, saveDerivSession } from '@/lib/deriv-session'
-import { derivWS } from '@/lib/deriv-websocket'
+import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { useTradingStore } from '@/stores/trading-store'
 
 function CallbackContent() {
@@ -67,38 +67,14 @@ function CallbackContent() {
           const tokenData = await tokenResponse.json()
           if (!tokenResponse.ok || !tokenData.access_token) throw new Error(tokenData.error || 'Could not complete Deriv sign-in.')
 
-          setStatusMessage('Loading your Deriv accounts...')
-          const accountsResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
-            headers: { Authorization: `Bearer ${tokenData.access_token}` },
-            cache: 'no-store',
-          })
-          const accountData = await accountsResponse.json()
-          if (!accountsResponse.ok) throw new Error('Deriv could not load your trading accounts.')
-          const rawAccounts = accountData.data?.accounts || accountData.data || accountData.accounts || []
-          if (!Array.isArray(rawAccounts) || rawAccounts.length === 0) throw new Error('No Deriv trading accounts were returned.')
-
-          const accountsList: DerivAccountItem[] = rawAccounts.map((item: any) => {
-            const id = String(item.account_id || item.id || item.loginid || item.account || '')
-            const type = String(item.account_type || item.type || '').toLowerCase()
-            return {
-              account: id,
-              token: tokenData.access_token,
-              currency: item.currency || item.currency_code || 'USD',
-              isVirtual: type.includes('demo') || type.includes('virtual') || id.startsWith('VRTC'),
-            }
-          }).filter((item: DerivAccountItem) => item.account)
-          if (!accountsList.length) throw new Error('Deriv returned accounts in an unsupported format.')
+          setStatusMessage('Loading your Deriv accounts and balances...')
+          const accountsList: DerivAccountItem[] = await fetchDerivAccounts(tokenData.access_token)
+          if (!accountsList.length) throw new Error('No Deriv trading accounts were returned.')
 
           const primary = accountsList.find((item) => item.isVirtual) || accountsList[0]
-          setStatusMessage('Authorizing your selected account...')
-          await derivWS.connect()
-          const authorization = await derivWS.authorize(primary.token)
-          const authorizedAccount = authorization?.authorize
-          if (!authorizedAccount?.loginid) throw new Error('Deriv could not authorize the selected trading account.')
-          const rawPrimary = rawAccounts.find((item: any) => String(item.account_id || item.id || item.loginid || item.account || '') === primary.account)
-          const balance = Number(authorizedAccount.balance ?? (typeof rawPrimary?.balance === 'object' ? rawPrimary.balance?.amount ?? 0 : rawPrimary?.balance ?? 0))
-          const currency = authorizedAccount.currency || primary.currency
-          const loginid = authorizedAccount.loginid
+          const balance = Number(primary.balance ?? 0)
+          const currency = primary.currency
+          const loginid = primary.account
           const session: DerivSession = {
             account: loginid,
             token: tokenData.access_token,
@@ -106,7 +82,7 @@ function CallbackContent() {
             loginid,
             balance,
             currency,
-            is_virtual: Boolean(authorizedAccount.is_virtual ?? primary.isVirtual),
+            is_virtual: primary.isVirtual,
             accounts: accountsList,
           }
           await saveDerivSession(session)
