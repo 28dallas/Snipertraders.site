@@ -19,7 +19,10 @@ async function hasSignedSession(value: string | undefined) {
   if (parts.length < 4) return false
   const signature = parts.pop()!
   const payload = parts.join('.')
-  const expiresAt = Number(parts[2])
+  // createdAt is an ISO timestamp with a decimal point, so its dot-separated
+  // fields cannot be addressed by a fixed array index. Expiration is the last
+  // field in the signed payload.
+  const expiresAt = Number(payload.slice(payload.lastIndexOf('.') + 1))
   if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return false
 
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])

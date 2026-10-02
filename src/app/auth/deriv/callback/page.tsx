@@ -84,7 +84,7 @@ function CallbackContent() {
           const accountsList: DerivAccountItem[] = await fetchDerivAccounts(tokenData.access_token)
           if (!accountsList.length) throw new Error('No Deriv trading accounts were returned.')
 
-          const primary = accountsList.find((item) => item.isVirtual) || accountsList[0]
+          const primary = accountsList.find((item) => !item.isVirtual) || accountsList[0]
           const balance = Number(primary.balance ?? 0)
           const currency = primary.currency
           const loginid = primary.account
