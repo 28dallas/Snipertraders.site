@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
@@ -15,8 +15,15 @@ function CallbackContent() {
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('Finishing secure Deriv sign-in...')
   const setAccount = useTradingStore((s) => s.setAccount)
+  const handledCallback = useRef(false)
 
   useEffect(() => {
+    // Clearing the OAuth URL updates Next's search params. Without this guard,
+    // the effect runs again with an empty URL and shows a false failure after
+    // the account has already connected.
+    if (handledCallback.current) return
+    handledCallback.current = true
+
     async function handleAuth() {
       // Deriv OAuth2 returns query parameters. Legacy Deriv OAuth redirects may
       // return acct/token parameters in the fragment, which Next's searchParams
