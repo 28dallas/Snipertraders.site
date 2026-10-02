@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { DerivAccountItem, DerivSession, saveDerivSession } from '@/lib/deriv-session'
+import { derivWS } from '@/lib/deriv-websocket'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { useTradingStore } from '@/stores/trading-store'
 
