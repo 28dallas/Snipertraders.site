@@ -8,6 +8,7 @@ import { DerivAccountItem, DerivSession, saveDerivSession } from '@/lib/deriv-se
 import { derivWS } from '@/lib/deriv-websocket'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { useTradingStore } from '@/stores/trading-store'
+import { hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
 
 function CallbackContent() {
   const params = useSearchParams()
@@ -65,6 +66,11 @@ function CallbackContent() {
         return
       }
 
+      if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+        setError('Stop the active bot and settle any open contract before connecting another Deriv account.')
+        return
+      }
+
       if (code) {
         if (!expectedState || !verifier || !redirectUri || returnedState !== expectedState) {
           setError('Deriv authorization could not be verified. Please start again.')
@@ -84,7 +90,7 @@ function CallbackContent() {
           const accountsList: DerivAccountItem[] = await fetchDerivAccounts(tokenData.access_token)
           if (!accountsList.length) throw new Error('No Deriv trading accounts were returned.')
 
-          const primary = accountsList.find((item) => !item.isVirtual) || accountsList[0]
+          const primary = accountsList.find((item) => item.isVirtual) || accountsList[0]
           const balance = Number(primary.balance ?? 0)
           const currency = primary.currency
           const loginid = primary.account

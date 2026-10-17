@@ -6,7 +6,7 @@ import { Gift, Bot, Play, Wrench, Search, Zap, Check, ArrowRight } from 'lucide-
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { useTradingStore, BotDefinition } from '@/stores/trading-store'
+import { useTradingStore, BotDefinition, GOLDMINE_M1_BOT, INFINITY_ALGO_BOT, TEXAS_EVEN_BOT } from '@/stores/trading-store'
 
 interface FreeBotItem {
   id: string
@@ -115,6 +115,30 @@ const FREE_BOTS_COLLECTION: FreeBotItem[] = [
     tags: ['800% Payout', 'High Risk', 'Digit Match'],
     recommendedRisk: 'High',
   },
+  {
+    ...GOLDMINE_M1_BOT,
+    category: 'digits',
+    marketLabel: 'Volatility 10 (1s)',
+    ruleDescription: 'Waits for last digit 1, buys DIGITOVER at prediction 3, and uses prediction 4 with 1.7x recovery after losses. Stops at +$50 or -$1,000 run P/L.',
+    tags: GOLDMINE_M1_BOT.tags ?? [],
+    recommendedRisk: 'High',
+  },
+  {
+    ...INFINITY_ALGO_BOT,
+    category: 'digits',
+    marketLabel: 'R_10',
+    ruleDescription: 'Starts on a 4-digit entry gate and keeps a controlled session running through 2x recovery steps until the run limit or stop-loss bound is reached.',
+    tags: INFINITY_ALGO_BOT.tags ?? [],
+    recommendedRisk: 'High',
+  },
+  {
+    ...TEXAS_EVEN_BOT,
+    category: 'digits',
+    marketLabel: 'Volatility 10 (1s)',
+    ruleDescription: 'Prompts for an entry digit, then buys EVEN on each tick for a ten-trade burst with a 2x recovery progression. Four straight default losses total $60, exceeding the $50 stop-loss.',
+    tags: TEXAS_EVEN_BOT.tags ?? [],
+    recommendedRisk: 'High',
+  },
 ]
 
 export default function FreeBotsPage() {
@@ -133,20 +157,30 @@ export default function FreeBotsPage() {
   })
 
   const handleOpenBot = (bot: FreeBotItem, target: 'builder' | 'auto') => {
-    const botDef: BotDefinition = {
-      id: bot.id,
-      name: bot.name,
-      market: bot.market,
-      strategy: bot.strategy,
-      contractType: bot.contractType,
-      tradeType: bot.tradeType,
-      stake: bot.stake,
-      duration: bot.duration,
-      description: bot.ruleDescription,
-      tags: bot.tags,
-    }
+    const botDef: BotDefinition = bot.id === GOLDMINE_M1_BOT.id
+      ? GOLDMINE_M1_BOT
+      : bot.id === INFINITY_ALGO_BOT.id
+        ? INFINITY_ALGO_BOT
+        : bot.id === TEXAS_EVEN_BOT.id
+          ? TEXAS_EVEN_BOT
+        : {
+          id: bot.id,
+          name: bot.name,
+          market: bot.market,
+          strategy: bot.strategy,
+          contractType: bot.contractType,
+          tradeType: bot.tradeType,
+          stake: bot.stake,
+          duration: bot.duration,
+          description: bot.ruleDescription,
+          tags: bot.tags,
+        }
     setSelectedBot(botDef)
     if (target === 'auto') {
+      if (bot.id === TEXAS_EVEN_BOT.id) {
+        router.push(`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(bot.name)}`)
+        return
+      }
       router.push(`/dashboard/auto-trader?bot=${encodeURIComponent(bot.name)}`)
     } else {
       router.push(`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(bot.name)}`)

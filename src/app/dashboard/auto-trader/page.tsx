@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Cpu, Play, Square, AlertOctagon, ShieldCheck, CheckCircle2,
@@ -11,8 +11,13 @@ import Badge from '@/components/ui/Badge'
 import ReportsPanel, { ReportTab } from '@/components/dashboard/ReportsPanel'
 import { useTradingStore } from '@/stores/trading-store'
 import { derivWS, DerivTick } from '@/lib/deriv-websocket'
+import { GoldmineM1State } from '@/lib/bots/goldmine-m1'
+import { InfinityAlgoState } from '@/lib/bots/infinity-algo'
+import { getGoldmineM1Runner, getInfinityAlgoRunner, GoldmineM1Runner, InfinityAlgoRunner } from '@/lib/bots/goldmine-m1-runner'
 
 const PRESET_BOTS = [
+  { id: 'goldmine-m1', name: 'Advanced Goldmine M1', market: '1HZ10V', type: 'Digit Over', contract: 'DIGITOVER', stake: 4, duration: '1' },
+  { id: 'infinity-algo', name: 'Infinity Algo', market: 'R_10', type: 'Digit Over', contract: 'DIGITOVER', stake: 0.5, duration: '1' },
   { id: 'ab-1', name: 'Digit Over 1 Accumulator', market: '1HZ10V', type: 'Over/Under', contract: 'OVER', stake: 0.5, duration: '1' },
   { id: 'ab-2', name: 'Volatility 75 Sniper Trend', market: '1HZ75V', type: 'Rise/Fall', contract: 'RISE', stake: 1.0, duration: '3' },
   { id: 'ab-3', name: 'Even-Odd Matrix Scalper', market: '1HZ50V', type: 'Even/Odd', contract: 'EVEN', stake: 0.5, duration: '1' },
@@ -22,6 +27,8 @@ function AutoTraderContent() {
   const searchParams = useSearchParams()
   const {
     isConnected,
+    token,
+    loginid,
     currency,
     selectedBot,
     sessionPnl,
@@ -34,6 +41,7 @@ function AutoTraderContent() {
   const [activeBot, setActiveBot] = useState(() => {
     if (selectedBot) {
       return {
+        id: selectedBot.id,
         name: selectedBot.name,
         market: selectedBot.market,
         type: selectedBot.tradeType || 'Rise/Fall',
@@ -50,6 +58,8 @@ function AutoTraderContent() {
   const [takeProfit, setTakeProfit] = useState(30)
   const [maxRuns, setMaxRuns] = useState(50)
   const [currentSpot, setCurrentSpot] = useState<number | null>(null)
+  const [goldmineState, setGoldmineState] = useState<GoldmineM1State | null>(null)
+  const [infinityState, setInfinityState] = useState<InfinityAlgoState | null>(null)
   const [journalLogs, setJournalLogs] = useState<Array<{ time: string; text: string; type?: 'info' | 'success' | 'warning' }>>([])
   const [activeTab, setActiveTab] = useState<ReportTab>('summary')
 
@@ -62,14 +72,75 @@ function AutoTraderContent() {
     }
   }, [searchParams])
 
-  const addJournalEntry = (text: string, type: 'info' | 'success' | 'warning' = 'info') => {
+  const addJournalEntry = useCallback((text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const time = new Date().toTimeString().slice(0, 8)
     setJournalLogs((prev) => [{ time, text, type }, ...prev.slice(0, 49)])
-  }
+  }, [])
+
+  useEffect(() => {
+    const isBuiltInBot = activeBot.id === 'goldmine-m1' || activeBot.id === 'infinity-algo'
+    if (!running || !isBuiltInBot) return
+
+    const isInfinity = activeBot.id === 'infinity-algo'
+    if (!isConnected || !token || !loginid) {
+      addJournalEntry(`Connect a Deriv account before running ${isInfinity ? 'Infinity Algo' : 'Advanced Goldmine M1'}.`, 'warning')
+      setRunning(false)
+      return
+    }
+
+    let runner: GoldmineM1Runner<any> | InfinityAlgoRunner
+    try {
+      runner = isInfinity ? getInfinityAlgoRunner({
+        token,
+        accountId: loginid,
+        currency,
+        onSettlement: ({ stake, payout, profit, won }) => {
+          if (useTradingStore.getState().loginid === loginid) recordTradeResult(stake, payout, won, profit)
+        },
+      }) : getGoldmineM1Runner({
+        token,
+        accountId: loginid,
+        currency,
+        onSettlement: ({ stake, payout, profit, won }) => {
+          if (useTradingStore.getState().loginid === loginid) recordTradeResult(stake, payout, won, profit)
+        },
+      })
+    } catch (error) {
+      addJournalEntry(error instanceof Error ? error.message : `Could not resume ${isInfinity ? 'Infinity Algo' : 'Advanced Goldmine M1'}.`, 'warning')
+      setRunning(false)
+      return
+    }
+
+    const unsubscribeCallbacks = runner.subscribe({
+      onState: (state: any) => {
+        if (useTradingStore.getState().loginid !== loginid) return
+        if (isInfinity) setInfinityState(state)
+        else setGoldmineState(state)
+        if (state.stopped) setRunning(false)
+      },
+      onLog: addJournalEntry,
+      onError: (error: Error) => {
+        addJournalEntry(error.message, 'warning')
+        setRunning(false)
+      },
+    })
+    void runner.start().catch(() => setRunning(false))
+
+    return () => {
+      unsubscribeCallbacks()
+      runner.stop()
+    }
+  }, [running, activeBot.id, isConnected, token, loginid, currency, recordTradeResult, addJournalEntry])
 
   // Automated execution engine on live Deriv WebSocket ticks
   useEffect(() => {
     if (!running) return
+    if (activeBot.id === 'texas-even') {
+      addJournalEntry('Run Texas Even Bot from its Bot Builder panel so its entry digit and account safety checks are applied.', 'warning')
+      setRunning(false)
+      return
+    }
+    if (activeBot.id === 'goldmine-m1' || activeBot.id === 'infinity-algo') return
 
     addJournalEntry(`Auto Trader initiated on ${activeBot.market}`, 'info')
     let tickCount = 0
@@ -146,7 +217,7 @@ function AutoTraderContent() {
       unsub()
       addJournalEntry(`Auto Trader runner stopped`, 'warning')
     }
-  }, [running, activeBot, isConnected, currency, sessionPnl, sessionTradesCount, stopLoss, takeProfit, maxRuns, recordTradeResult])
+  }, [running, activeBot, isConnected, currency, sessionPnl, sessionTradesCount, stopLoss, takeProfit, maxRuns, recordTradeResult, addJournalEntry])
 
   return (
     <div className="space-y-6">
@@ -220,59 +291,70 @@ function AutoTraderContent() {
             </div>
           </div>
 
-          {/* Risk Limits */}
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-muted-foreground text-xs block mb-1">Stop Loss ($)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={stopLoss}
-                  onChange={(e) => setStopLoss(parseFloat(e.target.value) || 1)}
-                  disabled={running}
-                  className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-muted-foreground text-xs block mb-1">Take Profit ($)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={takeProfit}
-                  onChange={(e) => setTakeProfit(parseFloat(e.target.value) || 1)}
-                  disabled={running}
-                  className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
-                />
-              </div>
+          {activeBot.id === 'goldmine-m1' ? (
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/80 bg-surface/50 p-3 text-xs">
+              <div><span className="block text-[10px] text-muted-foreground">Entry digit</span><span className="font-mono font-bold text-white">1</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Recovery barrier</span><span className="font-mono font-bold text-white">4</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Take profit</span><span className="font-mono font-bold text-profit">$50.00</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Stop loss</span><span className="font-mono font-bold text-loss">$1,000.00</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Engine mode</span><span className="font-mono font-bold text-white">{goldmineState?.mode ?? 'WAIT_ENTRY'}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Run P/L</span><span className="font-mono font-bold text-white">${(goldmineState?.totalProfit ?? 0).toFixed(2)}</span></div>
             </div>
+          ) : (
+            <div className="space-y-3 pt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-muted-foreground text-xs block mb-1">Stop Loss ($)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={stopLoss}
+                    onChange={(e) => setStopLoss(parseFloat(e.target.value) || 1)}
+                    disabled={running}
+                    className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-muted-foreground text-xs block mb-1">Take Profit ($)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={takeProfit}
+                    onChange={(e) => setTakeProfit(parseFloat(e.target.value) || 1)}
+                    disabled={running}
+                    className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="text-muted-foreground text-xs block mb-1">Max Runs Limit</label>
-              <input
-                type="number"
-                min={5}
-                value={maxRuns}
-                onChange={(e) => setMaxRuns(parseInt(e.target.value) || 10)}
-                disabled={running}
-                className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
-              />
+              <div>
+                <label className="text-muted-foreground text-xs block mb-1">Max Runs Limit</label>
+                <input
+                  type="number"
+                  min={5}
+                  value={maxRuns}
+                  onChange={(e) => setMaxRuns(parseInt(e.target.value) || 10)}
+                  disabled={running}
+                  className="w-full bg-surface border border-border rounded-xl px-3 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action Control */}
           <div className="pt-2 space-y-2">
             <button
               type="button"
               onClick={() => setRunning(!running)}
+              disabled={activeBot.id === 'goldmine-m1' && (!isConnected || !token)}
               className={`w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 running
                   ? 'bg-danger text-white hover:opacity-95'
                   : 'gradient-ranger text-black shadow-glow-sm hover:opacity-95'
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {running ? 'Stop Auto Trader' : 'Start Continuous Auto Trader'}
+              {running ? 'Stop Auto Trader' : activeBot.id === 'goldmine-m1' ? 'Run Advanced Goldmine M1' : 'Start Continuous Auto Trader'}
             </button>
 
             {running && (
