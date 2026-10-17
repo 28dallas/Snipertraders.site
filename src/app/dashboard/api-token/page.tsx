@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge'
 import { derivWS } from '@/lib/deriv-websocket'
 import { clearDerivSession, getDerivSession, saveDerivSession } from '@/lib/deriv-session'
 import { useTradingStore } from '@/stores/trading-store'
+import { beginDerivAccountTransition, hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
 
 type TokenEntry = {
   id: string
@@ -56,11 +57,13 @@ export default function APITokenPage() {
     if (!newToken.trim() || !newName.trim()) return
     setVerifying(true)
     setError('')
+    let releaseAccountTransition: (() => void) | null = null
     try {
+      releaseAccountTransition = beginDerivAccountTransition()
       const response = await derivWS.authorize(newToken.trim())
       const account = response?.authorize
       if (!account?.loginid) throw new Error('Deriv did not return a valid account')
-      saveDerivSession({
+      await saveDerivSession({
         account: account.loginid,
         loginid: account.loginid,
         token: newToken.trim(),
@@ -87,20 +90,30 @@ export default function APITokenPage() {
         connected: true,
         created: new Date().toISOString().slice(0, 10),
       }])
-      setVerifying(false)
       setShowAddForm(false)
       setNewToken('')
       setNewName('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not verify the Deriv token')
+    } finally {
+      releaseAccountTransition?.()
       setVerifying(false)
     }
   }
 
   const handleDelete = (id: string) => {
+    let releaseAccountTransition: (() => void) | null = null
+    try {
+      releaseAccountTransition = beginDerivAccountTransition()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Stop the active bot before disconnecting Deriv.')
+      return
+    }
+
     setTokens((prev) => prev.filter((t) => t.id !== id))
     clearDerivSession()
     logout()
+    releaseAccountTransition()
   }
 
   const handleCopy = (token: string, id: string) => {

@@ -5,6 +5,7 @@ import { LiveMarketSnapshot, OpenTrade, Strategy } from '@/types'
 import { DerivAccountItem, DerivSession, getDerivSession, saveDerivSession, clearDerivSession } from '@/lib/deriv-session'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { derivWS } from '@/lib/deriv-websocket'
+import { hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
 
 export interface BotDefinition {
   id: string
@@ -21,6 +22,55 @@ export interface BotDefinition {
   takeProfit?: number
   description?: string
   tags?: string[]
+}
+
+export const GOLDMINE_M1_BOT: BotDefinition = {
+  id: 'goldmine-m1',
+  name: 'Advanced Goldmine M1',
+  market: '1HZ10V',
+  strategy: 'Digit Over Recovery',
+  contractType: 'DIGITOVER',
+  tradeType: 'Digit Over',
+  stake: 4,
+  duration: '1 tick',
+  barrier: 3,
+  martingale: 1.7,
+  takeProfit: 50,
+  stopLoss: 1000,
+  description: 'Waits for last digit 1, then trades DIGITOVER with recovery prediction 4 and a 1.7x loss progression.',
+  tags: ['Digit Over', '1.7x Recovery', '1 Tick', 'High Risk'],
+}
+
+export const INFINITY_ALGO_BOT: BotDefinition = {
+  id: 'infinity-algo',
+  name: 'Infinity Algo',
+  market: 'R_10',
+  strategy: 'Digit Over Recovery',
+  contractType: 'DIGITOVER',
+  tradeType: 'Digit Over',
+  stake: 0.5,
+  duration: '1 tick',
+  barrier: 1,
+  martingale: 2,
+  stopLoss: 50,
+  description: 'Starts on a 4-digit entry gate, recovers losses with a 2x martingale, and keeps trading until the session limit or stop-loss bound is hit.',
+  tags: ['Digit Over', 'Entry Gate', 'Martingale', 'Session Control'],
+}
+
+export const TEXAS_EVEN_BOT: BotDefinition = {
+  id: 'texas-even',
+  name: 'Texas Even Bot',
+  market: '1HZ10V',
+  strategy: 'Entry-gated Even/Odd Burst',
+  contractType: 'DIGITEVEN',
+  tradeType: 'Even/Odd',
+  stake: 4,
+  duration: '1 tick',
+  martingale: 2,
+  takeProfit: 20,
+  stopLoss: 50,
+  description: 'Arms a ten-trade even-digit burst on a chosen entry digit and stops at the configured profit or loss limit.',
+  tags: ['Even', 'Entry Gate', '2x Martingale', 'Burst Trading', 'High Risk'],
 }
 
 interface TradingState {
@@ -65,7 +115,7 @@ interface TradingState {
   setActiveMarket: (symbol: string) => void
   setMarketPrice: (symbol: string, price: number) => void
   setSelectedBot: (bot: BotDefinition | null) => void
-  recordTradeResult: (stake: number, payout: number, isWin: boolean) => void
+  recordTradeResult: (stake: number, payout: number, isWin: boolean, actualProfit?: number) => void
   resetSessionStats: () => void
 
   // Copy trading & Polling helpers
@@ -123,6 +173,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const accounts = await fetchDerivAccounts(session.token)
       const account = accounts.find((item) => item.account === (session.loginid || session.account))
       if (!account) throw new Error('Deriv did not return the saved account. Please connect again.')
+      const accountHasActiveBot = hasActiveGoldmineRunner(account.account) || hasActiveInfinityAlgoRunner(account.account) || hasActiveTexasEvenRunner(account.account)
+      if (get().loginid !== account.account && accountHasActiveBot) {
+        set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
+        return
+      }
       set({
         loginid: account.account,
         token: session.token,
@@ -138,10 +193,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       try {
         const accountItem = session.accounts?.find((item) => item.account === (session.loginid || session.account))
         const token = accountItem?.token || session.token
+        const expectedAccount = accountItem?.account || session.loginid || session.account
+        const expectedAccountHasActiveBot = hasActiveGoldmineRunner(expectedAccount) || hasActiveInfinityAlgoRunner(expectedAccount) || hasActiveTexasEvenRunner(expectedAccount)
+        if (get().loginid !== expectedAccount && expectedAccountHasActiveBot) {
+          set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
+          return
+        }
         await derivWS.connect()
         const response = await derivWS.authorize(token)
         const account = response?.authorize
         if (!account?.loginid) throw new Error('Deriv did not confirm the saved account.')
+        const authorizedAccountHasActiveBot = hasActiveGoldmineRunner(account.loginid) || hasActiveInfinityAlgoRunner(account.loginid) || hasActiveTexasEvenRunner(account.loginid)
+        if (get().loginid !== account.loginid && authorizedAccountHasActiveBot) {
+          if (get().token) await derivWS.authorize(get().token!)
+          set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
+          return
+        }
         set({
           loginid: account.loginid,
           token,
@@ -159,6 +226,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   setAccount: (data) => {
+    const current = get()
+    const identityChanged = ('loginid' in data && data.loginid !== current.loginid)
+      || ('token' in data && data.token !== current.token)
+      || ('currency' in data && data.currency !== current.currency)
+    if (identityChanged && (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner())) {
+      set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before switching accounts.' })
+      return
+    }
     set((state) => ({ ...state, ...data }))
   },
 
@@ -184,7 +259,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   switchAccount: async (accountItem: DerivAccountItem) => {
     try {
-      set({ isLoading: true })
+      if (hasActiveGoldmineRunner(accountItem.account) || hasActiveInfinityAlgoRunner(accountItem.account) || hasActiveTexasEvenRunner(accountItem.account)) {
+        set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before switching accounts.' })
+        return
+      }
+      set({ isLoading: true, error: null })
       const balance = accountItem.balance ?? 0
       const currency = accountItem.currency
       const isVirtual = accountItem.isVirtual
@@ -217,6 +296,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   logout: () => {
+    if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+      set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before disconnecting.' })
+      return
+    }
     derivWS.disconnect()
     clearDerivSession()
     set({
@@ -243,8 +326,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ selectedBot: bot })
   },
 
-  recordTradeResult: (stake: number, payout: number, isWin: boolean) => {
-    const netPnl = isWin ? payout - stake : -stake
+  recordTradeResult: (stake: number, payout: number, isWin: boolean, actualProfit?: number) => {
+    const netPnl = actualProfit ?? (isWin ? payout - stake : -stake)
     set((state) => ({
       sessionTradesCount: state.sessionTradesCount + 1,
       sessionWins: state.sessionWins + (isWin ? 1 : 0),

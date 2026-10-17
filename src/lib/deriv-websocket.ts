@@ -52,6 +52,7 @@ export class DerivWebSocket {
   private listeners = new Map<string, Set<(data: any) => void>>()
   private activeSubscriptions = new Map<string, string>() // symbol/key -> subscription_id
   private subscriptionListeners = new Map<string, number>()
+  private pendingTickRequests = new Map<string, Promise<any>>()
   private contractSubscriptions = new Map<number, string>()
   private isConnecting = false
   private connectionPromise: Promise<void> | null = null
@@ -100,7 +101,7 @@ export class DerivWebSocket {
                 this.pending.delete(reqId)
                 req.reject(new Error(response.error.message || 'Deriv API error'))
               } else {
-                if (!req.isSubscription) {
+                if (!req.isSubscription || response.subscription?.id) {
                   this.pending.delete(reqId)
                 }
                 req.resolve(response)
@@ -143,6 +144,7 @@ export class DerivWebSocket {
           this.authorized = false
           this.activeSubscriptions.clear()
           this.subscriptionListeners.clear()
+          this.pendingTickRequests.clear()
           this.contractSubscriptions.clear()
           this.pending.forEach(({ reject }) => reject(new Error('Deriv connection closed.')))
           this.pending.clear()
@@ -237,20 +239,40 @@ export class DerivWebSocket {
 
   // Trading Execution
   proposal(params: Record<string, unknown>) {
-    return this.request({ proposal: 1, subscribe: 1, ...params }, true)
+    return this.request({ proposal: 1, ...params })
   }
 
   buy(proposalId: string, price: number): Promise<DerivBuyResponse> {
     return this.request<DerivBuyResponse>({ buy: proposalId, price })
   }
 
-  subscribeContract(contractId: number, onUpdate: (contract: Record<string, any>) => void): () => void {
+  subscribeContract(
+    contractId: number,
+    onUpdate: (contract: Record<string, any>) => void,
+    onError?: (error: Error) => void
+  ): () => void {
     const event = `contract_${contractId}`
     const unsubscribe = this.on(event, onUpdate)
-    this.request({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }, true).catch((err) => {
-      console.warn(`[DerivWS] Could not subscribe to contract ${contractId}:`, err.message)
-    })
+    let active = true
+    this.request({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }, true)
+      .then((response) => {
+        if (active) return
+        const subscriptionId = response?.subscription?.id || this.contractSubscriptions.get(contractId)
+        if (!subscriptionId) return
+        this.request({ forget: subscriptionId }).catch(() => undefined)
+        if (this.contractSubscriptions.get(contractId) === subscriptionId) {
+          this.contractSubscriptions.delete(contractId)
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          const error = err instanceof Error ? err : new Error('Could not subscribe to contract updates.')
+          onError?.(error)
+          console.warn(`[DerivWS] Could not subscribe to contract ${contractId}:`, error.message)
+        }
+      })
     return () => {
+      active = false
       unsubscribe()
       const subscriptionId = this.contractSubscriptions.get(contractId)
       if (subscriptionId) {
@@ -286,24 +308,31 @@ export class DerivWebSocket {
 
   // Utility to subscribe and listen to ticks
   subscribeTicks(symbol: string, onTick: (tick: DerivTick) => void): () => void {
-    let active = true
     const unsubEvent = this.on(`tick_${symbol}`, onTick)
     const listenerCount = (this.subscriptionListeners.get(symbol) ?? 0) + 1
     this.subscriptionListeners.set(symbol, listenerCount)
     if (listenerCount === 1) {
-      this.ticks(symbol).then((response) => {
-        if (!active || (this.subscriptionListeners.get(symbol) ?? 0) > 0) return
+      let subscriptionRequest = this.pendingTickRequests.get(symbol)
+      if (!subscriptionRequest) {
+        subscriptionRequest = this.ticks(symbol)
+        this.pendingTickRequests.set(symbol, subscriptionRequest)
+      }
+      subscriptionRequest.then((response) => {
+        if (this.pendingTickRequests.get(symbol) === subscriptionRequest) this.pendingTickRequests.delete(symbol)
+        if ((this.subscriptionListeners.get(symbol) ?? 0) > 0) return
         const subscriptionId = response?.subscription?.id || this.activeSubscriptions.get(`tick_${symbol}`)
         if (subscriptionId) {
           this.request({ forget: subscriptionId }).catch(() => undefined)
-          this.activeSubscriptions.delete(`tick_${symbol}`)
+          if (this.activeSubscriptions.get(`tick_${symbol}`) === subscriptionId) {
+            this.activeSubscriptions.delete(`tick_${symbol}`)
+          }
         }
       }).catch((err) => {
+        if (this.pendingTickRequests.get(symbol) === subscriptionRequest) this.pendingTickRequests.delete(symbol)
         console.warn(`[DerivWS] Could not subscribe to ticks for ${symbol}:`, err.message)
       })
     }
     return () => {
-      active = false
       unsubEvent()
       const remaining = (this.subscriptionListeners.get(symbol) ?? 1) - 1
       if (remaining > 0) {
@@ -333,11 +362,14 @@ export class DerivWebSocket {
   disconnect() {
     this.socket?.close()
     this.socket = null
+    this.pending.forEach(({ reject }) => reject(new Error('Deriv connection closed.')))
     this.pending.clear()
-    this.listeners.clear()
     this.activeSubscriptions.clear()
     this.subscriptionListeners.clear()
+    this.pendingTickRequests.clear()
     this.contractSubscriptions.clear()
+    this.emit('close', {})
+    this.listeners.clear()
     this.isConnecting = false
     this.connectionPromise = null
     this.authorized = false

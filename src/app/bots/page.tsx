@@ -20,6 +20,9 @@ const FREE_BOTS = [
   'Over Under Pro Bot',
   'ROCKET DIFFER ANALYZER(BY DERIV KILLER).XML',
   'WEALTH GENERATOR V2',
+  'Advanced Goldmine M1',
+  'Infinity Algo',
+  'Texas Even Bot',
 ]
 
 export default function FreeBotsPage() {
@@ -86,10 +89,12 @@ return (
                     Open in Builder
                   </Link>
                   <Link
-                    href={`/dashboard/auto-trader?bot=${encodeURIComponent(name)}`}
+                    href={name === 'Texas Even Bot'
+                      ? `/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(name)}`
+                      : `/dashboard/auto-trader?bot=${encodeURIComponent(name)}`}
                     className="py-1.5 text-center text-xs font-bold rounded-lg bg-primary text-black hover:opacity-90 transition-all shadow-glow-sm"
                   >
-                    Open in Auto Trader
+                    {name === 'Texas Even Bot' ? 'Configure & Run' : 'Open in Auto Trader'}
                   </Link>
                 </div>
               </div>
