@@ -33,13 +33,14 @@ export default function FreeBotShowcase() {
   const [activeBot, setActiveBot] = useState<typeof MOCK_BOTS[number] | null>(null)
 
   const filtered = MOCK_BOTS.filter((bot) => {
+    if (!bot.is_free) return false
     if (activeTab === 'all') return true
     if (activeTab === 'volatility') return bot.market.startsWith('volatility')
     if (activeTab === 'forex') return bot.market === 'forex'
     if (activeTab === 'crash_boom') return bot.market.startsWith('crash') || bot.market.startsWith('boom')
     if (activeTab === 'step_index') return bot.market === 'step_index'
     return true
-  }).slice(0, 6)
+  })
 
   return (
     <section className="py-20">
@@ -86,10 +87,14 @@ export default function FreeBotShowcase() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge variant={getWinRateBadge(bot.win_rate)}>
-                  <Star className="w-3 h-3 mr-1" />
-                  {bot.win_rate}% Win Rate
-                </Badge>
+                {typeof bot.win_rate === 'number' ? (
+                  <Badge variant={getWinRateBadge(bot.win_rate)}>
+                    <Star className="w-3 h-3 mr-1" />
+                    {bot.win_rate}% Win Rate
+                  </Badge>
+                ) : (
+                  <Badge variant="default">Performance unverified</Badge>
+                )}
                 <Badge variant="default">{STRATEGY_LABELS[bot.strategy_type]}</Badge>
                 <Badge variant={getRiskBadge(bot.risk_level)}>
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -100,10 +105,12 @@ export default function FreeBotShowcase() {
               <p className="text-muted-foreground text-xs leading-relaxed flex-1">{bot.description}</p>
 
               <div className="flex items-center justify-between pt-2 border-t border-border">
-                <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                  <Download className="w-3.5 h-3.5" />
-                  {bot.download_count.toLocaleString()} downloads
-                </div>
+                {bot.download_count > 0 && (
+                  <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                    <Download className="w-3.5 h-3.5" />
+                    {bot.download_count.toLocaleString()} downloads
+                  </div>
+                )}
                 {bot.is_free ? (
                   <button
                     type="button"

@@ -21,7 +21,7 @@ export interface Bot {
   name: string
   market: Market
   strategy_type: StrategyType
-  win_rate: number
+  win_rate?: number
   risk_level: RiskLevel
   download_count: number
   xml_content?: string

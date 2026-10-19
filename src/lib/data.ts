@@ -9,6 +9,9 @@ export const MOCK_BOTS: Bot[] = [
   { id: '6', name: 'Forex Trend Follower', market: 'forex', strategy_type: 'rise_fall', win_rate: 63, risk_level: 'medium', download_count: 2341, is_free: false, created_at: '2024-01-18', description: 'Trend-following bot for major forex pairs on Deriv.' },
   { id: '7', name: 'V75 Digit Sniper', market: 'volatility_75', strategy_type: 'digit_match', win_rate: 55, risk_level: 'high', download_count: 1654, is_free: true, created_at: '2024-01-20', description: 'High-risk digit sniper for Volatility 75 index.' },
   { id: '8', name: 'Boom 500 Scalper', market: 'boom_500', strategy_type: 'touch_no_touch', win_rate: 70, risk_level: 'medium', download_count: 3456, is_free: false, created_at: '2024-01-22', description: 'Touch/no-touch scalper optimized for Boom 500.' },
+  { id: '9', name: 'Advanced Goldmine M1', market: 'volatility_10', strategy_type: 'over_under', risk_level: 'high', download_count: 0, is_free: true, created_at: '2026-10-19', description: 'Trades DIGITOVER after the last digit is 1, using a 1.7x loss progression.' },
+  { id: '10', name: 'Infinity Algo', market: 'volatility_10', strategy_type: 'over_under', risk_level: 'high', download_count: 0, is_free: true, created_at: '2026-10-19', description: 'Uses a 4-digit entry gate and 2x recovery progression, with session and stop-loss limits.' },
+  { id: '11', name: 'Texas Even Bot', market: 'volatility_10', strategy_type: 'even_odd', risk_level: 'high', download_count: 0, is_free: true, created_at: '2026-10-19', description: 'Runs an entry-gated even-digit burst and stops at the configured profit or loss limit.' },
 ]
 
 export const MOCK_TRADERS: Trader[] = [

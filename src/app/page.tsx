@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowDown, Maximize, Sun } from 'lucide-react'
 import DerivConnectButton from '@/components/shared/DerivConnectButton'
+import FreeBotShowcase from '@/components/sections/FreeBotShowcase'
 
 const TICKERS = [
   ['VOL 10', 'Loading...'], ['VOL 25', 'Loading...'], ['VOL 50', 'Loading...'],
@@ -83,6 +84,7 @@ export default function HomePage() {
         </div>
         <div className="public-stats">{STATS.map(([value, label]) => <div className="public-stat" key={label}><strong>{value}</strong><span>{label}</span></div>)}</div>
       </section>
+      <FreeBotShowcase />
       <footer className="public-footer"><span className="footer-live" /><span>2026-09-23 20:07:59 GMT</span><ArrowDown /><Sun /><span>🇬🇧 EN</span><Maximize /></footer>
     </main>
   )
