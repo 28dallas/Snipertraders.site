@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 import { derivWS } from '@/lib/deriv-websocket'
 import { clearDerivSession, getDerivSession, saveDerivSession } from '@/lib/deriv-session'
 import { useTradingStore } from '@/stores/trading-store'
-import { beginDerivAccountTransition, hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { beginDerivAccountTransition } from '@/lib/bots/goldmine-m1-runner'
 
 type TokenEntry = {
   id: string

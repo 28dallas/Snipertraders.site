@@ -5,7 +5,7 @@ import { LiveMarketSnapshot, OpenTrade, Strategy } from '@/types'
 import { DerivAccountItem, DerivSession, getDerivSession, saveDerivSession, clearDerivSession } from '@/lib/deriv-session'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { derivWS } from '@/lib/deriv-websocket'
-import { hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { hasActiveAutomatedBotRunner } from '@/lib/bots/goldmine-m1-runner'
 
 export interface BotDefinition {
   id: string
@@ -173,7 +173,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const accounts = await fetchDerivAccounts(session.token)
       const account = accounts.find((item) => item.account === (session.loginid || session.account))
       if (!account) throw new Error('Deriv did not return the saved account. Please connect again.')
-      const accountHasActiveBot = hasActiveGoldmineRunner(account.account) || hasActiveInfinityAlgoRunner(account.account) || hasActiveTexasEvenRunner(account.account)
+      const accountHasActiveBot = hasActiveAutomatedBotRunner(account.account)
       if (get().loginid !== account.account && accountHasActiveBot) {
         set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
         return
@@ -194,7 +194,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         const accountItem = session.accounts?.find((item) => item.account === (session.loginid || session.account))
         const token = accountItem?.token || session.token
         const expectedAccount = accountItem?.account || session.loginid || session.account
-        const expectedAccountHasActiveBot = hasActiveGoldmineRunner(expectedAccount) || hasActiveInfinityAlgoRunner(expectedAccount) || hasActiveTexasEvenRunner(expectedAccount)
+        const expectedAccountHasActiveBot = hasActiveAutomatedBotRunner(expectedAccount)
         if (get().loginid !== expectedAccount && expectedAccountHasActiveBot) {
           set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
           return
@@ -203,7 +203,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         const response = await derivWS.authorize(token)
         const account = response?.authorize
         if (!account?.loginid) throw new Error('Deriv did not confirm the saved account.')
-        const authorizedAccountHasActiveBot = hasActiveGoldmineRunner(account.loginid) || hasActiveInfinityAlgoRunner(account.loginid) || hasActiveTexasEvenRunner(account.loginid)
+        const authorizedAccountHasActiveBot = hasActiveAutomatedBotRunner(account.loginid)
         if (get().loginid !== account.loginid && authorizedAccountHasActiveBot) {
           if (get().token) await derivWS.authorize(get().token!)
           set({ error: 'Wait for the open bot contract to settle before switching accounts.' })
@@ -230,8 +230,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const identityChanged = ('loginid' in data && data.loginid !== current.loginid)
       || ('token' in data && data.token !== current.token)
       || ('currency' in data && data.currency !== current.currency)
-    if (identityChanged && (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner())) {
-      set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before switching accounts.' })
+    if (identityChanged && hasActiveAutomatedBotRunner()) {
+      set({ error: 'Stop the active bot and settle any open contract before switching accounts.' })
       return
     }
     set((state) => ({ ...state, ...data }))
@@ -259,8 +259,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   switchAccount: async (accountItem: DerivAccountItem) => {
     try {
-      if (hasActiveGoldmineRunner(accountItem.account) || hasActiveInfinityAlgoRunner(accountItem.account) || hasActiveTexasEvenRunner(accountItem.account)) {
-        set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before switching accounts.' })
+      if (hasActiveAutomatedBotRunner(accountItem.account)) {
+        set({ error: 'Stop the active bot and settle any open contract before switching accounts.' })
         return
       }
       set({ isLoading: true, error: null })
@@ -296,8 +296,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   logout: () => {
-    if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
-      set({ error: 'Stop Advanced Goldmine M1, Infinity Algo, or Texas Even Bot and settle any open contract before disconnecting.' })
+    if (hasActiveAutomatedBotRunner()) {
+      set({ error: 'Stop the active bot and settle any open contract before disconnecting.' })
       return
     }
     derivWS.disconnect()

@@ -63,6 +63,30 @@ export class InfinityAlgo {
 
   constructor(config: Partial<InfinityAlgoConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
+    if (!Number.isInteger(this.config.entryDigit) || this.config.entryDigit < 0 || this.config.entryDigit > 9) {
+      throw new Error('Infinity Algo entry digit must be between zero and nine.')
+    }
+    if (![this.config.initialStake, this.config.minStake, this.config.maxStake, this.config.martingale, this.config.stopLoss]
+      .every((value) => Number.isFinite(value) && value > 0)) {
+      throw new Error('Infinity Algo stakes, multiplier, and stop loss must be greater than zero.')
+    }
+    if (this.config.martingale < 1) throw new Error('Infinity Algo recovery multiplier must be at least one.')
+    if (this.config.minStake > this.config.initialStake || this.config.initialStake > this.config.maxStake) {
+      throw new Error('Infinity Algo initial stake must be within its configured stake range.')
+    }
+    if (!Number.isInteger(this.config.durationTicks) || this.config.durationTicks < 1) {
+      throw new Error('Infinity Algo duration must be at least one tick.')
+    }
+    if (!Number.isInteger(this.config.maxWins) || this.config.maxWins < 1) {
+      throw new Error('Infinity Algo win limit must be at least one.')
+    }
+    if (![this.config.initialPrediction, this.config.recoveryPrediction]
+      .every((value) => Number.isInteger(value) && value >= 0 && value <= 9)) {
+      throw new Error('Infinity Algo predictions must be digits between zero and nine.')
+    }
+    if (this.config.takeProfit !== null && (!Number.isFinite(this.config.takeProfit) || this.config.takeProfit <= 0)) {
+      throw new Error('Infinity Algo take profit must be greater than zero when configured.')
+    }
     this.state = {
       stake: this.config.initialStake,
       prediction: this.config.initialPrediction,
@@ -75,7 +99,7 @@ export class InfinityAlgo {
   }
 
   onTick(lastDigit: number): BuyDecision | null {
-    if (this.state.stopped || this.contractOpen || !Number.isInteger(lastDigit)) return null
+    if (this.state.stopped || this.contractOpen || !Number.isInteger(lastDigit) || lastDigit < 0 || lastDigit > 9) return null
 
     if (!this.state.entrySignal) {
       const isEntryDigit = lastDigit === this.config.entryDigit

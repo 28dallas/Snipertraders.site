@@ -72,18 +72,20 @@ describe('GoldmineM1', () => {
     })
   })
 
-  it('stops only when profit is greater than take profit', () => {
+  it('stops when profit reaches the take-profit target', () => {
     const bot = new GoldmineM1({ requireEntryDigitOnFirstTrade: false, takeProfit: 1 })
     bot.onTick(7)
 
     const atTarget = bot.onContractSettled({ won: true, profit: 1 })
-    expect(atTarget.stopped).toBeNull()
-
-    bot.onTick(7)
-    const aboveTarget = bot.onContractSettled({ won: true, profit: 0.01 })
-
-    expect(aboveTarget.stopped).toBe('TAKE_PROFIT')
+    expect(atTarget.stopped).toBe('TAKE_PROFIT')
     expect(bot.onTick(1)).toBeNull()
+  })
+
+  it('ignores digits outside the Deriv digit range', () => {
+    const bot = new GoldmineM1()
+
+    expect(bot.onTick(10)).toBeNull()
+    expect(bot.getState().contractOpen).toBe(false)
   })
 
   it('stops when profit reaches the stop-loss boundary', () => {
@@ -120,7 +122,7 @@ describe('GoldmineM1', () => {
       isConnected: true,
       isAuthorized: true,
       connect: vi.fn(async () => undefined),
-      authorize: vi.fn(async () => ({ authorize: { loginid: 'VRTC12345' } })),
+      authorize: vi.fn(async () => ({ authorize: { loginid: 'VRTC12345', balance: 100 } })),
       proposal: vi.fn(async () => ({ proposal: { id: 'proposal-1', ask_price: 4 } })),
       buy: vi.fn(async () => ({ buy: { contract_id: 123 } })),
       subscribeTicks: vi.fn((_symbol: string, callback: (tick: DerivTick) => void) => {
@@ -149,7 +151,7 @@ describe('GoldmineM1', () => {
     await runner.start()
     expect(hasActiveGoldmineRunner()).toBe(true)
     useTradingStore.getState().logout()
-    expect(useTradingStore.getState().error).toContain('Stop Advanced Goldmine M1')
+    expect(useTradingStore.getState().error).toContain('Stop the active bot')
     expect(connection.authorize).toHaveBeenCalledWith('demo-token')
     handlers.tick?.({ ask: 0, bid: 0, epoch: 1, id: 'tick-1', pip_size: 2, quote: 1.01, symbol: '1HZ10V' })
     await vi.waitFor(() => expect(connection.buy).toHaveBeenCalledOnce())

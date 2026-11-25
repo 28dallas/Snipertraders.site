@@ -8,10 +8,11 @@ import {
 } from '@/lib/bots/goldmine-m1'
 import { InfinityAlgo, InfinityAlgoConfig, InfinityAlgoState } from '@/lib/bots/infinity-algo'
 import { TexasEven, TexasEvenConfig, TexasEvenState } from '@/lib/bots/texas-even'
+import { FreeBotStrategy, FreeBotStrategyConfig } from '@/lib/bots/free-bot-strategy'
 
 type JournalType = 'info' | 'success' | 'warning'
 
-interface GoldmineDerivConnection {
+export interface GoldmineDerivConnection {
   readonly isConnected: boolean
   readonly isAuthorized: boolean
   connect(): Promise<void>
@@ -74,7 +75,7 @@ export function getLastDigitFromQuote(quote: number, pipSize: number): number {
 }
 
 export class GoldmineM1Runner<TStrategy extends {
-  onTick: (lastDigit: number) => BuyDecision | null
+  onTick: (lastDigit: number, tick?: DerivTick) => BuyDecision | null
   onContractSettled: (result: { won: boolean; profit: number }) => { stopped: any; state: any }
   getState: () => any
   onBuyFailed?: () => any
@@ -130,7 +131,7 @@ export class GoldmineM1Runner<TStrategy extends {
 
   updateCredentials(token: string, currency: string): void {
     if (this.openContract && this.currency !== currency) {
-      throw new Error('Wait for the open Goldmine contract to settle before changing account currency.')
+      throw new Error('Wait for the open bot contract to settle before changing account currency.')
     }
     this.token = token
     this.currency = currency
@@ -169,7 +170,7 @@ export class GoldmineM1Runner<TStrategy extends {
       else this.subscribeToTicks()
     } catch (error) {
       this.stop()
-      const normalizedError = error instanceof Error ? error : new Error('Could not start Advanced Goldmine M1.')
+      const normalizedError = error instanceof Error ? error : new Error(`Could not start ${this.strategyName}.`)
       this.emitError(normalizedError)
       throw normalizedError
     }
@@ -211,7 +212,7 @@ export class GoldmineM1Runner<TStrategy extends {
     const previousState = this.strategy.getState()
     let decision: BuyDecision | null
     try {
-      decision = this.strategy.onTick(getLastDigitFromQuote(tick.quote, tick.pip_size))
+      decision = this.strategy.onTick(getLastDigitFromQuote(tick.quote, tick.pip_size), tick)
     } catch (error) {
       this.emitLog(error instanceof Error ? error.message : 'Invalid Deriv tick received.', 'warning')
       return
@@ -246,6 +247,9 @@ export class GoldmineM1Runner<TStrategy extends {
     if (this instanceof TexasEvenRunner && texasEvenRunnerRegistry.get(accountId) === this) {
       texasEvenRunnerRegistry.delete(accountId)
     }
+    for (const [key, runner] of freeBotRunnerRegistry) {
+      if (Object.is(runner, this)) freeBotRunnerRegistry.delete(key)
+    }
   }
 
   private attachConnectionCloseObserver(): void {
@@ -269,8 +273,22 @@ export class GoldmineM1Runner<TStrategy extends {
 
       openContract.unsubscribe?.()
       this.openContract = null
-      const profit = Number(contract.profit ?? Number(contract.payout ?? 0) - openContract.stake)
-      const payout = Number(contract.payout ?? profit + openContract.stake)
+      const reportedProfit = contract.profit === null || contract.profit === undefined
+        ? null
+        : Number(contract.profit)
+      const reportedPayout = contract.payout === null || contract.payout === undefined
+        ? null
+        : Number(contract.payout)
+      const profit = reportedProfit ?? (reportedPayout === null ? Number.NaN : reportedPayout - openContract.stake)
+      const payout = reportedPayout ?? (reportedProfit === null ? Number.NaN : reportedProfit + openContract.stake)
+      if (!Number.isFinite(profit) || !Number.isFinite(payout) || payout < 0) {
+        this.rejectStrategyTrade()
+        this.stop()
+        const error = new Error(`Deriv returned an invalid settlement for contract #${openContract.contractId}.`)
+        this.emitError(error)
+        this.emitLog(error.message, 'warning')
+        return
+      }
       const won = String(contract.status) === 'won' || (String(contract.status) !== 'lost' && profit > 0)
       const outcome = this.strategy.onContractSettled({ won, profit })
       const reportedBalance = Number(contract.balance_after)
@@ -294,7 +312,7 @@ export class GoldmineM1Runner<TStrategy extends {
 
       if (outcome.stopped) {
         this.stop()
-        const stopLabel = outcome.stopped === 'SESSION_COMPLETE' ? 'session complete' : 'stop-loss'
+        const stopLabel = String(outcome.stopped).toLowerCase().replace(/_/g, ' ')
         this.emitLog(`${this.strategyName} stopped at its ${stopLabel} limit.`, 'warning')
       } else {
         this.subscribeToTicks()
@@ -312,14 +330,21 @@ export class GoldmineM1Runner<TStrategy extends {
   private async placeTrade(decision: BuyDecision): Promise<void> {
     if (this.pendingPlacement || this.openContract) return
     this.pendingPlacement = true
+    if (!Number.isFinite(decision.stake) || decision.stake <= 0) {
+      this.rejectStrategyTrade()
+      this.pendingPlacement = false
+      this.stop()
+      this.emitError(new Error(`${this.strategyName} produced an invalid stake.`))
+      return
+    }
     const stake = Number(decision.stake.toFixed(2))
     try {
       if (this.enforceBalance && (this.availableBalance === null || stake > this.availableBalance)) {
         this.rejectStrategyTrade()
         this.emitState(this.strategy.getState())
         const error = new Error(this.availableBalance === null
-          ? 'Texas Even Bot stopped because the Deriv account balance could not be confirmed.'
-          : `Texas Even Bot stopped because the $${stake.toFixed(2)} stake exceeds the $${this.availableBalance.toFixed(2)} account balance.`)
+          ? `${this.strategyName} stopped because the Deriv account balance could not be confirmed.`
+          : `${this.strategyName} stopped because the $${stake.toFixed(2)} stake exceeds the $${this.availableBalance.toFixed(2)} account balance.`)
         this.stop()
         this.emitError(error)
         return
@@ -336,14 +361,17 @@ export class GoldmineM1Runner<TStrategy extends {
         ...(decision.barrier === undefined ? {} : { barrier: String(decision.barrier) }),
       })
       const proposal = proposalResponse?.proposal
-      if (!proposal?.id) throw new Error('Deriv did not return a proposal ID.')
+      const askPrice = Number(proposal?.ask_price)
+      if (!proposal?.id || !Number.isFinite(askPrice) || askPrice <= 0) {
+        throw new Error('Deriv did not return a valid proposal and ask price.')
+      }
       if (!this.isRunning) {
         this.strategy.onTradeRejected?.()
         this.emitState(this.strategy.getState())
         return
       }
 
-      const buyResponse = await this.connection.buy(proposal.id, Number(proposal.ask_price))
+      const buyResponse = await this.connection.buy(proposal.id, askPrice)
       const contractId = Number(buyResponse?.buy?.contract_id)
       if (!Number.isFinite(contractId) || contractId <= 0) throw new Error('Deriv did not return a contract ID.')
 
@@ -419,11 +447,45 @@ export class TexasEvenRunner extends GoldmineM1Runner<TexasEven> {
 const runnerRegistry = new Map<string, GoldmineM1Runner<any>>()
 const infinityRunnerRegistry = new Map<string, InfinityAlgoRunner>()
 const texasEvenRunnerRegistry = new Map<string, TexasEvenRunner>()
+const freeBotRunnerRegistry = new Map<string, GoldmineM1Runner<FreeBotStrategy>>()
 let accountTransitionPending = false
+
+function getRegisteredRunners(): GoldmineM1Runner<any>[] {
+  return [
+    ...runnerRegistry.values(),
+    ...infinityRunnerRegistry.values(),
+    ...texasEvenRunnerRegistry.values(),
+    ...freeBotRunnerRegistry.values(),
+  ]
+}
+
+function runnerHasOpenContract(runner: GoldmineM1Runner<any>): boolean {
+  const state = runner.getState()
+  return Boolean(state?.contractOpen || state?.awaitingSettle)
+}
+
+function runnerIsOperating(runner: GoldmineM1Runner<any>): boolean {
+  return runner.isActive || runnerHasOpenContract(runner)
+}
+
+function assertNoConflictingRunner(accountId: string, exceptRunner?: GoldmineM1Runner<any>): void {
+  const activeRunner = getRegisteredRunners().find((runner) => runner !== exceptRunner && runnerIsOperating(runner))
+  if (!activeRunner) return
+  if (activeRunner.accountId !== accountId) {
+    throw new Error('Wait for the open bot contract on the previous account to settle before switching accounts.')
+  }
+  throw new Error('Stop the active bot and settle its open contract before starting another bot.')
+}
+
+export function hasActiveAutomatedBotRunner(exceptAccountId?: string): boolean {
+  return getRegisteredRunners().some(
+    (runner) => (!exceptAccountId || runner.accountId !== exceptAccountId) && runnerIsOperating(runner)
+  )
+}
 
 export function beginDerivAccountTransition(): () => void {
   if (accountTransitionPending) throw new Error('A Deriv account change is already in progress.')
-  if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+  if (hasActiveAutomatedBotRunner()) {
     throw new Error('Stop the active bot and settle any open contract before changing Deriv accounts.')
   }
 
@@ -444,14 +506,8 @@ function assertAccountTransitionIdle(): void {
 
 export function getGoldmineM1Runner(options: GoldmineM1RunnerIdentity): GoldmineM1Runner {
   assertAccountTransitionIdle()
-  const activeRunner = Array.from(runnerRegistry.values()).find(
-    (runner) => runner.accountId !== options.accountId && (runner.isActive || runner.getState().contractOpen)
-  )
-  if (activeRunner) {
-    throw new Error('Wait for the open Goldmine contract on the previous account to settle before switching accounts.')
-  }
-
   const existingRunner = runnerRegistry.get(options.accountId)
+  assertNoConflictingRunner(options.accountId, existingRunner)
   if (existingRunner && !existingRunner.getState().stopped) {
     existingRunner.updateCredentials(options.token, options.currency)
     if (options.onSettlement) existingRunner.setAccountSettlementHandler(options.onSettlement)
@@ -459,7 +515,11 @@ export function getGoldmineM1Runner(options: GoldmineM1RunnerIdentity): Goldmine
   }
 
   existingRunner?.dispose()
-  const runner = new GoldmineM1Runner(options)
+  const runner = new GoldmineM1Runner({
+    ...options,
+    maxConsecutiveOrderErrors: 5,
+    enforceBalance: true,
+  })
   runnerRegistry.set(options.accountId, runner)
   return runner
 }
@@ -482,14 +542,8 @@ export function hasActiveGoldmineRunner(exceptAccountId?: string): boolean {
 
 export function getInfinityAlgoRunner(options: GoldmineM1RunnerIdentity): InfinityAlgoRunner {
   assertAccountTransitionIdle()
-  const activeRunner = Array.from(infinityRunnerRegistry.values()).find(
-    (runner) => runner.accountId !== options.accountId && (runner.isActive || runner.getState().contractOpen)
-  )
-  if (activeRunner) {
-    throw new Error('Wait for the open Infinity Algo contract on the previous account to settle before switching accounts.')
-  }
-
   const existingRunner = infinityRunnerRegistry.get(options.accountId)
+  assertNoConflictingRunner(options.accountId, existingRunner)
   if (existingRunner && !existingRunner.getState().stopped) {
     existingRunner.updateCredentials(options.token, options.currency)
     if (options.onSettlement) existingRunner.setAccountSettlementHandler(options.onSettlement)
@@ -499,6 +553,8 @@ export function getInfinityAlgoRunner(options: GoldmineM1RunnerIdentity): Infini
   existingRunner?.dispose()
   const runner = new InfinityAlgoRunner({
     ...options,
+    maxConsecutiveOrderErrors: 5,
+    enforceBalance: true,
     onSettlement: options.onSettlement,
   })
   infinityRunnerRegistry.set(options.accountId, runner)
@@ -523,14 +579,8 @@ export function hasActiveInfinityAlgoRunner(exceptAccountId?: string): boolean {
 
 export function getTexasEvenRunner(options: TexasEvenRunnerIdentity): TexasEvenRunner {
   assertAccountTransitionIdle()
-  const activeRunner = Array.from(texasEvenRunnerRegistry.values()).find(
-    (runner) => runner.accountId !== options.accountId && (runner.isActive || runner.getState().awaitingSettle)
-  )
-  if (activeRunner) {
-    throw new Error('Wait for the open Texas Even Bot contract on the previous account to settle before switching accounts.')
-  }
-
   const existingRunner = texasEvenRunnerRegistry.get(options.accountId)
+  assertNoConflictingRunner(options.accountId, existingRunner)
   if (existingRunner && !existingRunner.getState().stopped) {
     existingRunner.updateCredentials(options.token, options.currency)
     if (options.onSettlement) existingRunner.setAccountSettlementHandler(options.onSettlement)
@@ -552,5 +602,50 @@ export function hasOpenTexasEvenContract(exceptAccountId?: string): boolean {
 export function hasActiveTexasEvenRunner(exceptAccountId?: string): boolean {
   return Array.from(texasEvenRunnerRegistry.values()).some(
     (runner) => (!exceptAccountId || runner.accountId !== exceptAccountId) && (runner.isActive || runner.getState().awaitingSettle)
+  )
+}
+
+export interface FreeBotRunnerOptions {
+  token: string
+  accountId: string
+  currency: string
+  config: FreeBotStrategyConfig
+  strategyName?: string
+  connection?: GoldmineDerivConnection
+  onSettlement?: (settlement: GoldmineM1Settlement) => void
+}
+
+export function getFreeBotRunner(options: FreeBotRunnerOptions): GoldmineM1Runner<FreeBotStrategy> {
+  assertAccountTransitionIdle()
+  const key = `${options.accountId}:${options.config.id}`
+  const existingRunner = freeBotRunnerRegistry.get(key)
+  assertNoConflictingRunner(options.accountId, existingRunner)
+
+  if (existingRunner && !existingRunner.getState().stopped) {
+    existingRunner.updateCredentials(options.token, options.currency)
+    if (options.onSettlement) existingRunner.setAccountSettlementHandler(options.onSettlement)
+    return existingRunner
+  }
+
+  existingRunner?.dispose()
+  const runner = new GoldmineM1Runner<FreeBotStrategy>({
+    token: options.token,
+    accountId: options.accountId,
+    currency: options.currency,
+    config: { symbol: options.config.symbol },
+    strategyName: options.strategyName ?? options.config.id,
+    strategyFactory: () => new FreeBotStrategy(options.config),
+    maxConsecutiveOrderErrors: 5,
+    enforceBalance: true,
+    connection: options.connection,
+    onSettlement: options.onSettlement,
+  })
+  freeBotRunnerRegistry.set(key, runner)
+  return runner
+}
+
+export function hasActiveFreeBotRunner(exceptAccountId?: string): boolean {
+  return Array.from(freeBotRunnerRegistry.values()).some(
+    (runner) => (!exceptAccountId || runner.accountId !== exceptAccountId) && runnerIsOperating(runner)
   )
 }

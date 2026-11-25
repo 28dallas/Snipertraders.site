@@ -8,7 +8,7 @@ import { DerivAccountItem, DerivSession, saveDerivSession } from '@/lib/deriv-se
 import { derivWS } from '@/lib/deriv-websocket'
 import { fetchDerivAccounts } from '@/lib/deriv-accounts'
 import { useTradingStore } from '@/stores/trading-store'
-import { hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { hasActiveAutomatedBotRunner } from '@/lib/bots/goldmine-m1-runner'
 
 function CallbackContent() {
   const params = useSearchParams()
@@ -66,7 +66,7 @@ function CallbackContent() {
         return
       }
 
-      if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+      if (hasActiveAutomatedBotRunner()) {
         setError('Stop the active bot and settle any open contract before connecting another Deriv account.')
         return
       }

@@ -3,22 +3,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Play, RotateCcw, ChevronLeft, AlertTriangle, X, Search } from 'lucide-react'
 import DemoModeNotice from '@/components/shared/DemoModeNotice'
+import { FREE_BOTS_COLLECTION, toBotDefinition } from '@/lib/free-bots'
+import { useTradingStore } from '@/stores/trading-store'
 
 type Tab = 'summary' | 'transactions' | 'journal'
 
-const FREE_BOTS = [
-  'Digit Over 1 Accumulator',
-  'Digit Under 8 Shield',
-  'Even-Odd Alternator Matrix',
-  'Volatility 75 Sniper Trend',
-  'Volatility 100 Spike Hunter',
-  'Digit Match 7 Scalper Pro',
-  'Advanced Goldmine M1',
-  'Infinity Algo',
-  'Texas Even Bot',
-]
-
 export default function FreeBotsPage() {
+  const setSelectedBot = useTradingStore((state) => state.setSelectedBot)
   const [tab, setTab] = useState<Tab>('summary')
   const [running, setRunning] = useState(false)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
@@ -26,7 +17,7 @@ export default function FreeBotsPage() {
   const [search, setSearch] = useState('')
   const [loadedBot, setLoadedBot] = useState<string | null>(null)
 
-  const filtered = FREE_BOTS.filter((b) => b.toLowerCase().includes(search.toLowerCase()))
+  const filtered = FREE_BOTS_COLLECTION.filter((bot) => bot.name.toLowerCase().includes(search.toLowerCase()))
 
 return (
     <div className="flex h-[calc(100vh-96px)] bg-[#0A0E1A] overflow-hidden relative">
@@ -60,34 +51,44 @@ return (
         {/* Bot grid */}
         <div className="flex-1 overflow-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {filtered.map((name) => (
+            {filtered.map((bot) => (
               <div
-                key={name}
+                key={bot.id}
                 className={`flex flex-col rounded-lg overflow-hidden border transition-all ${
-                  loadedBot === name
+                loadedBot === bot.name
                     ? 'border-primary shadow-[0_0_12px_rgba(0,230,118,0.3)]'
                     : 'border-[#1E2A40] hover:border-primary/50'
                 }`}
                 style={{ background: 'linear-gradient(180deg, #0d1340 0%, #0a0e2e 100%)' }}
               >
                 <div className="px-3 pt-3 pb-1">
-                  <p className="text-[#8899AA] text-xs font-medium leading-snug line-clamp-2 min-h-[32px]">{name}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setLoadedBot(bot.name); setRunning(false) }}
+                    className="text-left text-[#8899AA] text-xs font-medium leading-snug line-clamp-2 min-h-[32px] hover:text-white"
+                  >
+                    {bot.name}
+                  </button>
                 </div>
-                <div className="flex-1 mx-3 my-2 rounded bg-[#060918] min-h-[80px]" />
+                <div className="mx-3 my-2 rounded bg-[#060918] min-h-[80px] p-2 text-[10px] leading-relaxed text-slate-400">
+                  {bot.ruleDescription}
+                </div>
                 <div className="p-2.5 flex flex-col gap-1.5 border-t border-[#1e2a40]">
                   <Link
-                    href={`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(name)}`}
+                    href={`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(bot.name)}`}
+                    onClick={() => setSelectedBot(toBotDefinition(bot))}
                     className="py-1.5 text-center text-xs font-semibold rounded-lg bg-surface border border-border text-white hover:border-primary/50 transition-colors"
                   >
                     Open in Builder
                   </Link>
                   <Link
-                    href={name === 'Texas Even Bot'
-                      ? `/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(name)}`
-                      : `/dashboard/auto-trader?bot=${encodeURIComponent(name)}`}
+                    href={bot.name === 'Texas Even Bot'
+                      ? `/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(bot.name)}`
+                      : `/dashboard/auto-trader?bot=${encodeURIComponent(bot.name)}`}
+                    onClick={() => setSelectedBot(toBotDefinition(bot))}
                     className="py-1.5 text-center text-xs font-bold rounded-lg bg-primary text-black hover:opacity-90 transition-all shadow-glow-sm"
                   >
-                    {name === 'Texas Even Bot' ? 'Configure & Run' : 'Open in Auto Trader'}
+                    {bot.name === 'Texas Even Bot' ? 'Configure & Run' : 'Open in Auto Trader'}
                   </Link>
                 </div>
               </div>
@@ -135,8 +136,8 @@ return (
               <>
                 <div className="flex-1 flex items-center justify-center p-6 text-center">
                   {running
-                    ? <div><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" /><p className="text-[#8899AA] text-sm">Bot is running...</p></div>
-                    : <p className="text-[#8899AA] text-sm leading-relaxed">When you&apos;re ready to trade, hit <strong className="text-white">Run</strong>.<br />You&apos;ll be able to track your bot&apos;s performance here.</p>
+                    ? <div><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" /><p className="text-[#8899AA] text-sm">Preview is running; no trades are placed.</p></div>
+                    : <p className="text-[#8899AA] text-sm leading-relaxed">{loadedBot ? <><strong className="text-white">{loadedBot}</strong> is selected for preview.</> : 'Select a bot to preview it.'}<br />Preview mode does not place trades. Use the bot&apos;s launch button to configure its strategy.</p>
                   }
                 </div>
                 <div className="border-t border-[#1E2A40] p-4">

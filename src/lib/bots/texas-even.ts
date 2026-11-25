@@ -59,6 +59,11 @@ export function calculateWorstCaseExposure(
 ): number {
   const minStake = config.minStake ?? DEFAULT_CONFIG.minStake
   const maxStake = config.maxStake ?? DEFAULT_CONFIG.maxStake
+  if (![config.initialStake, config.martingale, config.stopLoss, minStake, maxStake]
+    .every((value) => Number.isFinite(value) && value > 0)
+    || config.martingale < 1 || minStake > maxStake) {
+    throw new Error('Texas Even risk limits and stakes must be valid positive values.')
+  }
   let stakeCents = Math.round(roundToCents(Math.min(maxStake, Math.max(minStake, config.initialStake))) * 100)
   let exposureCents = 0
   const stopLossCents = Math.round(Number(config.stopLoss.toFixed(2)) * 100)
@@ -87,6 +92,20 @@ export class TexasEven {
     }
 
     this.config = { ...DEFAULT_CONFIG, ...config }
+    if (!['EVEN', 'ODD'].includes(this.config.side)) throw new Error('Texas Even side must be EVEN or ODD.')
+    if (![this.config.initialStake, this.config.martingale, this.config.takeProfit, this.config.stopLoss, this.config.minStake, this.config.maxStake]
+      .every((value) => Number.isFinite(value) && value > 0)) {
+      throw new Error('Texas Even stakes, multiplier, and limits must be greater than zero.')
+    }
+    if (this.config.martingale < 1 || this.config.minStake > this.config.maxStake) {
+      throw new Error('Texas Even stake progression is outside its configured limits.')
+    }
+    if (!Number.isInteger(this.config.runsPerBurst) || this.config.runsPerBurst < 1) {
+      throw new Error('Texas Even burst size must be at least one trade.')
+    }
+    if (!Number.isInteger(this.config.durationTicks) || this.config.durationTicks < 1) {
+      throw new Error('Texas Even duration must be at least one tick.')
+    }
     this.state = {
       stake: clampStake(this.config.initialStake, this.config),
       burstRemaining: 0,
@@ -136,6 +155,7 @@ export class TexasEven {
 
   onContractSettled(result: { won: boolean; profit: number }): SettleOutcome {
     if (!this.state.awaitingSettle) return this.createSettleOutcome()
+    if (!Number.isFinite(result.profit)) throw new Error('Deriv returned an invalid contract profit.')
 
     this.state = {
       ...this.state,

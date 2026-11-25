@@ -6,140 +6,8 @@ import { Gift, Bot, Play, Wrench, Search, Zap, Check, ArrowRight } from 'lucide-
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { useTradingStore, BotDefinition, GOLDMINE_M1_BOT, INFINITY_ALGO_BOT, TEXAS_EVEN_BOT } from '@/stores/trading-store'
-
-interface FreeBotItem {
-  id: string
-  name: string
-  category: 'digits' | 'volatility' | 'scalpers'
-  market: string
-  marketLabel: string
-  strategy: string
-  contractType: string
-  tradeType: string
-  stake: number
-  duration: string
-  ruleDescription: string
-  tags: string[]
-  recommendedRisk: 'Low' | 'Medium' | 'High'
-}
-
-const FREE_BOTS_COLLECTION: FreeBotItem[] = [
-  {
-    id: 'fb-1',
-    name: 'Digit Over 1 Accumulator',
-    category: 'digits',
-    market: '1HZ10V',
-    marketLabel: 'Volatility 10 (1s)',
-    strategy: 'Over/Under',
-    contractType: 'OVER',
-    tradeType: 'Over/Under',
-    stake: 0.5,
-    duration: '1 tick',
-    ruleDescription: 'Purchases DIGITOVER (Prediction 1) whenever the preceding spot digit is ≤ 1, capitalizing on 80% statistical odds.',
-    tags: ['Over 1', 'Martingale 1.2x', 'Low Risk'],
-    recommendedRisk: 'Low',
-  },
-  {
-    id: 'fb-2',
-    name: 'Digit Under 8 Shield',
-    category: 'digits',
-    market: '1HZ25V',
-    marketLabel: 'Volatility 25 (1s)',
-    strategy: 'Over/Under',
-    contractType: 'UNDER',
-    tradeType: 'Over/Under',
-    stake: 1.0,
-    duration: '1 tick',
-    ruleDescription: 'Evaluates tick streams for digits ≥ 8. Enters DIGITUNDER (Prediction 8) with automated stop-loss limit.',
-    tags: ['Under 8', 'Conservative', 'Stop Loss Guard'],
-    recommendedRisk: 'Low',
-  },
-  {
-    id: 'fb-3',
-    name: 'Even-Odd Alternator Matrix',
-    category: 'digits',
-    market: '1HZ50V',
-    marketLabel: 'Volatility 50 (1s)',
-    strategy: 'Even/Odd',
-    contractType: 'EVEN',
-    tradeType: 'Even/Odd',
-    stake: 0.5,
-    duration: '1 tick',
-    ruleDescription: 'Monitors streaks of 3 identical parity outcomes (e.g. 3 consecutive Odds) then triggers counter-parity.',
-    tags: ['Parity Streak', 'Even/Odd', 'Medium Risk'],
-    recommendedRisk: 'Medium',
-  },
-  {
-    id: 'fb-4',
-    name: 'Volatility 75 Sniper Trend',
-    category: 'volatility',
-    market: '1HZ75V',
-    marketLabel: 'Volatility 75 (1s)',
-    strategy: 'Rise/Fall',
-    contractType: 'RISE',
-    tradeType: 'Rise/Fall',
-    stake: 1.0,
-    duration: '3 ticks',
-    ruleDescription: 'Detects micro-momentum breakouts across 5 ticks. Enters CALL on positive slope continuation.',
-    tags: ['Breakout', '3 Ticks', 'High Return'],
-    recommendedRisk: 'Medium',
-  },
-  {
-    id: 'fb-5',
-    name: 'Volatility 100 Spike Hunter',
-    category: 'volatility',
-    market: '1HZ100V',
-    marketLabel: 'Volatility 100 (1s)',
-    strategy: 'Rise/Fall',
-    contractType: 'FALL',
-    tradeType: 'Rise/Fall',
-    stake: 2.0,
-    duration: '5 ticks',
-    ruleDescription: 'Fades overextended upward tick surges on high volatility with PUT contracts.',
-    tags: ['Mean Reversion', '5 Ticks', 'High Volatility'],
-    recommendedRisk: 'High',
-  },
-  {
-    id: 'fb-6',
-    name: 'Digit Match 7 Scalper Pro',
-    category: 'scalpers',
-    market: '1HZ10V',
-    marketLabel: 'Volatility 10 (1s)',
-    strategy: 'Digit Match',
-    contractType: 'MATCH',
-    tradeType: 'Digit Match',
-    stake: 0.35,
-    duration: '1 tick',
-    ruleDescription: 'High payout (800%+) hunter targeting recurring digit clusters with tiny stake allocation.',
-    tags: ['800% Payout', 'High Risk', 'Digit Match'],
-    recommendedRisk: 'High',
-  },
-  {
-    ...GOLDMINE_M1_BOT,
-    category: 'digits',
-    marketLabel: 'Volatility 10 (1s)',
-    ruleDescription: 'Waits for last digit 1, buys DIGITOVER at prediction 3, and uses prediction 4 with 1.7x recovery after losses. Stops at +$50 or -$1,000 run P/L.',
-    tags: GOLDMINE_M1_BOT.tags ?? [],
-    recommendedRisk: 'High',
-  },
-  {
-    ...INFINITY_ALGO_BOT,
-    category: 'digits',
-    marketLabel: 'R_10',
-    ruleDescription: 'Starts on a 4-digit entry gate and keeps a controlled session running through 2x recovery steps until the run limit or stop-loss bound is reached.',
-    tags: INFINITY_ALGO_BOT.tags ?? [],
-    recommendedRisk: 'High',
-  },
-  {
-    ...TEXAS_EVEN_BOT,
-    category: 'digits',
-    marketLabel: 'Volatility 10 (1s)',
-    ruleDescription: 'Prompts for an entry digit, then buys EVEN on each tick for a ten-trade burst with a 2x recovery progression. Four straight default losses total $60, exceeding the $50 stop-loss.',
-    tags: TEXAS_EVEN_BOT.tags ?? [],
-    recommendedRisk: 'High',
-  },
-]
+import { FREE_BOTS_COLLECTION, FreeBotItem, toBotDefinition } from '@/lib/free-bots'
+import { useTradingStore } from '@/stores/trading-store'
 
 export default function FreeBotsPage() {
   const router = useRouter()
@@ -157,27 +25,9 @@ export default function FreeBotsPage() {
   })
 
   const handleOpenBot = (bot: FreeBotItem, target: 'builder' | 'auto') => {
-    const botDef: BotDefinition = bot.id === GOLDMINE_M1_BOT.id
-      ? GOLDMINE_M1_BOT
-      : bot.id === INFINITY_ALGO_BOT.id
-        ? INFINITY_ALGO_BOT
-        : bot.id === TEXAS_EVEN_BOT.id
-          ? TEXAS_EVEN_BOT
-        : {
-          id: bot.id,
-          name: bot.name,
-          market: bot.market,
-          strategy: bot.strategy,
-          contractType: bot.contractType,
-          tradeType: bot.tradeType,
-          stake: bot.stake,
-          duration: bot.duration,
-          description: bot.ruleDescription,
-          tags: bot.tags,
-        }
-    setSelectedBot(botDef)
+    setSelectedBot(toBotDefinition(bot))
     if (target === 'auto') {
-      if (bot.id === TEXAS_EVEN_BOT.id) {
+      if (bot.id === 'texas-even') {
         router.push(`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(bot.name)}`)
         return
       }

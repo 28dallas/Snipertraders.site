@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Cpu, Play, Square, AlertOctagon, ShieldCheck, CheckCircle2,
   TrendingUp, TrendingDown, RefreshCw, Sliders
@@ -10,67 +10,74 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import ReportsPanel, { ReportTab } from '@/components/dashboard/ReportsPanel'
 import { useTradingStore } from '@/stores/trading-store'
-import { derivWS, DerivTick } from '@/lib/deriv-websocket'
+import type { BotDefinition } from '@/stores/trading-store'
 import { GoldmineM1State } from '@/lib/bots/goldmine-m1'
 import { InfinityAlgoState } from '@/lib/bots/infinity-algo'
-import { getGoldmineM1Runner, getInfinityAlgoRunner, GoldmineM1Runner, InfinityAlgoRunner } from '@/lib/bots/goldmine-m1-runner'
+import { FreeBotStrategyState } from '@/lib/bots/free-bot-strategy'
+import { getFreeBotRunner, getGoldmineM1Runner, getInfinityAlgoRunner, GoldmineM1Runner, InfinityAlgoRunner } from '@/lib/bots/goldmine-m1-runner'
+import { FREE_BOTS_COLLECTION, getFreeBotByName, isCatalogFreeBotId, toBotDefinition } from '@/lib/free-bots'
 
-const PRESET_BOTS = [
-  { id: 'goldmine-m1', name: 'Advanced Goldmine M1', market: '1HZ10V', type: 'Digit Over', contract: 'DIGITOVER', stake: 4, duration: '1' },
-  { id: 'infinity-algo', name: 'Infinity Algo', market: 'R_10', type: 'Digit Over', contract: 'DIGITOVER', stake: 0.5, duration: '1' },
-  { id: 'ab-1', name: 'Digit Over 1 Accumulator', market: '1HZ10V', type: 'Over/Under', contract: 'OVER', stake: 0.5, duration: '1' },
-  { id: 'ab-2', name: 'Volatility 75 Sniper Trend', market: '1HZ75V', type: 'Rise/Fall', contract: 'RISE', stake: 1.0, duration: '3' },
-  { id: 'ab-3', name: 'Even-Odd Matrix Scalper', market: '1HZ50V', type: 'Even/Odd', contract: 'EVEN', stake: 0.5, duration: '1' },
-]
+interface AutoTraderBot {
+  id: string
+  name: string
+  market: string
+  type: string
+  contract: string
+  stake: number
+  duration: string
+}
+
+function toAutoTraderBot(bot: BotDefinition): AutoTraderBot {
+  return {
+    id: bot.id,
+    name: bot.name,
+    market: bot.market,
+    type: bot.tradeType,
+    contract: bot.contractType,
+    stake: bot.stake,
+    duration: bot.duration.replace(/\D/g, '') || '1',
+  }
+}
+
+const PRESET_BOTS = FREE_BOTS_COLLECTION.map(toAutoTraderBot)
 
 function AutoTraderContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const initialBot = getFreeBotByName(searchParams.get('bot'))
+    ?? getFreeBotByName(useTradingStore.getState().selectedBot?.name)
+    ?? FREE_BOTS_COLLECTION[0]
   const {
     isConnected,
     token,
     loginid,
     currency,
     selectedBot,
-    sessionPnl,
-    sessionTradesCount,
-    sessionWins,
-    sessionLosses,
+    setSelectedBot,
     recordTradeResult,
   } = useTradingStore()
 
-  const [activeBot, setActiveBot] = useState(() => {
-    if (selectedBot) {
-      return {
-        id: selectedBot.id,
-        name: selectedBot.name,
-        market: selectedBot.market,
-        type: selectedBot.tradeType || 'Rise/Fall',
-        contract: selectedBot.contractType || 'RISE',
-        stake: selectedBot.stake || 0.5,
-        duration: selectedBot.duration || '1',
-      }
-    }
-    return PRESET_BOTS[0]
-  })
+  const [activeBot, setActiveBot] = useState(() => toAutoTraderBot(initialBot))
 
   const [running, setRunning] = useState(false)
   const [stopLoss, setStopLoss] = useState(15)
   const [takeProfit, setTakeProfit] = useState(30)
   const [maxRuns, setMaxRuns] = useState(50)
-  const [currentSpot, setCurrentSpot] = useState<number | null>(null)
   const [goldmineState, setGoldmineState] = useState<GoldmineM1State | null>(null)
   const [infinityState, setInfinityState] = useState<InfinityAlgoState | null>(null)
+  const [freeBotState, setFreeBotState] = useState<FreeBotStrategyState | null>(null)
   const [journalLogs, setJournalLogs] = useState<Array<{ time: string; text: string; type?: 'info' | 'success' | 'warning' }>>([])
   const [activeTab, setActiveTab] = useState<ReportTab>('summary')
 
-  // Check URL query param
   useEffect(() => {
-    const qBot = searchParams.get('bot')
-    if (qBot) {
-      const found = PRESET_BOTS.find((b) => b.name.toLowerCase().includes(qBot.toLowerCase()))
-      if (found) setActiveBot(found)
-    }
-  }, [searchParams])
+    const bot = getFreeBotByName(searchParams.get('bot'))
+    if (!bot) return
+    setActiveBot(toAutoTraderBot(bot))
+    setSelectedBot(toBotDefinition(bot))
+    setGoldmineState(null)
+    setInfinityState(null)
+    setFreeBotState(null)
+  }, [searchParams, setSelectedBot])
 
   const addJournalEntry = useCallback((text: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const time = new Date().toTimeString().slice(0, 8)
@@ -78,35 +85,63 @@ function AutoTraderContent() {
   }, [])
 
   useEffect(() => {
-    const isBuiltInBot = activeBot.id === 'goldmine-m1' || activeBot.id === 'infinity-algo'
-    if (!running || !isBuiltInBot) return
-
+    if (!running) return
+    const isGoldmine = activeBot.id === 'goldmine-m1'
     const isInfinity = activeBot.id === 'infinity-algo'
+    const isTexasEven = activeBot.id === 'texas-even'
+    const isCatalogBot = isCatalogFreeBotId(activeBot.id)
+    if (isTexasEven) {
+      addJournalEntry('Run Texas Even Bot from its Bot Builder panel so its entry digit and account safety checks are applied.', 'warning')
+      setRunning(false)
+      return
+    }
+    if (!isGoldmine && !isInfinity && !isCatalogBot) return
     if (!isConnected || !token || !loginid) {
-      addJournalEntry(`Connect a Deriv account before running ${isInfinity ? 'Infinity Algo' : 'Advanced Goldmine M1'}.`, 'warning')
+      addJournalEntry(`Connect a Deriv account before running ${activeBot.name}.`, 'warning')
       setRunning(false)
       return
     }
 
     let runner: GoldmineM1Runner<any> | InfinityAlgoRunner
     try {
-      runner = isInfinity ? getInfinityAlgoRunner({
-        token,
-        accountId: loginid,
-        currency,
-        onSettlement: ({ stake, payout, profit, won }) => {
+      const onSettlement = ({ stake, payout, profit, won }: { stake: number; payout: number; profit: number; won: boolean }) => {
           if (useTradingStore.getState().loginid === loginid) recordTradeResult(stake, payout, won, profit)
-        },
-      }) : getGoldmineM1Runner({
-        token,
-        accountId: loginid,
-        currency,
-        onSettlement: ({ stake, payout, profit, won }) => {
-          if (useTradingStore.getState().loginid === loginid) recordTradeResult(stake, payout, won, profit)
-        },
-      })
+      }
+      if (isCatalogBot) {
+        const catalogBot = FREE_BOTS_COLLECTION.find((bot) => bot.id === activeBot.id)
+        if (!catalogBot) throw new Error('The selected Free Bot configuration could not be found.')
+        if (!isCatalogFreeBotId(catalogBot.id)) throw new Error('The selected Free Bot strategy is not supported.')
+        runner = getFreeBotRunner({
+          token,
+          accountId: loginid,
+          currency,
+          strategyName: catalogBot.name,
+          config: {
+            id: catalogBot.id,
+            symbol: catalogBot.market,
+            initialStake: catalogBot.stake,
+            durationTicks: Number.parseInt(catalogBot.duration, 10) || 1,
+            stopLoss,
+            takeProfit,
+            maxTrades: maxRuns,
+          },
+          onSettlement,
+        })
+      } else {
+        runner = isInfinity ? getInfinityAlgoRunner({
+          token,
+          accountId: loginid,
+          currency,
+          onSettlement,
+        }) : getGoldmineM1Runner({
+          token,
+          accountId: loginid,
+          currency,
+          onSettlement,
+        })
+      }
     } catch (error) {
-      addJournalEntry(error instanceof Error ? error.message : `Could not resume ${isInfinity ? 'Infinity Algo' : 'Advanced Goldmine M1'}.`, 'warning')
+      addJournalEntry(error instanceof Error ? error.message : `Could not start ${activeBot.name}.`, 'warning')
       setRunning(false)
       return
     }
@@ -114,7 +149,10 @@ function AutoTraderContent() {
     const unsubscribeCallbacks = runner.subscribe({
       onState: (state: any) => {
         if (useTradingStore.getState().loginid !== loginid) return
-        if (isInfinity) setInfinityState(state)
+        if (isCatalogBot) {
+          setFreeBotState(state)
+        }
+        else if (isInfinity) setInfinityState(state)
         else setGoldmineState(state)
         if (state.stopped) setRunning(false)
       },
@@ -130,94 +168,7 @@ function AutoTraderContent() {
       unsubscribeCallbacks()
       runner.stop()
     }
-  }, [running, activeBot.id, isConnected, token, loginid, currency, recordTradeResult, addJournalEntry])
-
-  // Automated execution engine on live Deriv WebSocket ticks
-  useEffect(() => {
-    if (!running) return
-    if (activeBot.id === 'texas-even') {
-      addJournalEntry('Run Texas Even Bot from its Bot Builder panel so its entry digit and account safety checks are applied.', 'warning')
-      setRunning(false)
-      return
-    }
-    if (activeBot.id === 'goldmine-m1' || activeBot.id === 'infinity-algo') return
-
-    addJournalEntry(`Auto Trader initiated on ${activeBot.market}`, 'info')
-    let tickCount = 0
-
-    const unsub = derivWS.subscribeTicks(activeBot.market, async (tick: DerivTick) => {
-      setCurrentSpot(tick.quote)
-      tickCount++
-
-      // Execute order trigger every 4 ticks
-      if (tickCount % 4 === 0) {
-        addJournalEntry(`Tick #${tickCount}: ${tick.quote} -> Evaluating entry rule...`, 'info')
-
-        if (isConnected) {
-          try {
-            const prop = await derivWS.proposal({
-              amount: activeBot.stake,
-              basis: 'stake',
-              contract_type: activeBot.contract === 'RISE' ? 'CALL' : 'PUT',
-              currency: currency || 'USD',
-              duration: parseInt(activeBot.duration) || 1,
-              duration_unit: 't',
-              symbol: activeBot.market,
-            })
-
-            const pid = prop?.proposal?.id
-            const askPrice = prop?.proposal?.ask_price ?? activeBot.stake
-            const payout = prop?.proposal?.payout ?? activeBot.stake * 1.95
-
-            if (pid) {
-              const buyRes = await derivWS.buy(pid, askPrice)
-              const cid = buyRes?.buy?.contract_id
-              if (!cid) throw new Error('Deriv did not return a contract ID')
-              addJournalEntry(`Deriv Contract #${cid} opened! Stake $${activeBot.stake}`, 'info')
-              const unsubscribeContract = derivWS.subscribeContract(cid, (contract) => {
-                const settled = contract.is_sold === 1 || ['won', 'lost', 'sold'].includes(String(contract.status))
-                if (!settled) return
-                const settledPayout = Number(contract.payout ?? 0)
-                const profit = Number(contract.profit ?? settledPayout - activeBot.stake)
-                const won = String(contract.status) === 'won' || profit > 0
-                recordTradeResult(activeBot.stake, settledPayout, won)
-                addJournalEntry(
-                  won ? `Contract #${cid} WON! Payout: +$${settledPayout.toFixed(2)}` : `Contract #${cid} LOST`,
-                  won ? 'success' : 'warning'
-                )
-                unsubscribeContract()
-              })
-            }
-          } catch (err) {
-            addJournalEntry(`Live order failed: ${err instanceof Error ? err.message : 'Deriv API error'}`, 'warning')
-            setRunning(false)
-          }
-        } else {
-          // Simulation when offline
-          const won = Math.random() > 0.45
-          recordTradeResult(activeBot.stake, won ? activeBot.stake * 1.92 : 0, won)
-          addJournalEntry(`Order filled (Preview) -> ${won ? 'WIN' : 'LOSS'}`, won ? 'success' : 'warning')
-        }
-
-        // Safety Stop Checks
-        if (sessionPnl <= -stopLoss) {
-          setRunning(false)
-          addJournalEntry(`Stop-Loss ceiling (-$${stopLoss}) reached! Automated runner halted.`, 'warning')
-        } else if (sessionPnl >= takeProfit) {
-          setRunning(false)
-          addJournalEntry(`Take-Profit target (+$${takeProfit}) achieved! Profit secured.`, 'success')
-        } else if (sessionTradesCount >= maxRuns) {
-          setRunning(false)
-          addJournalEntry(`Max runs limit (${maxRuns}) reached. Execution complete.`, 'info')
-        }
-      }
-    })
-
-    return () => {
-      unsub()
-      addJournalEntry(`Auto Trader runner stopped`, 'warning')
-    }
-  }, [running, activeBot, isConnected, currency, sessionPnl, sessionTradesCount, stopLoss, takeProfit, maxRuns, recordTradeResult, addJournalEntry])
+  }, [running, activeBot, isConnected, token, loginid, currency, stopLoss, takeProfit, maxRuns, recordTradeResult, addJournalEntry])
 
   return (
     <div className="space-y-6">
@@ -255,13 +206,18 @@ function AutoTraderContent() {
             <select
               value={activeBot.name}
               onChange={(e) => {
-                const found = PRESET_BOTS.find((b) => b.name === e.target.value)
-                if (found) setActiveBot(found)
+                const found = FREE_BOTS_COLLECTION.find((bot) => bot.name === e.target.value)
+                if (found) {
+                  setActiveBot(toAutoTraderBot(found))
+                  setSelectedBot(toBotDefinition(found))
+                  setGoldmineState(null)
+                  setInfinityState(null)
+                  setFreeBotState(null)
+                }
               }}
               disabled={running}
               className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:border-primary disabled:opacity-50"
             >
-              <option value={activeBot.name}>{activeBot.name}</option>
               {PRESET_BOTS.map((b) => (
                 <option key={b.id} value={b.name}>
                   {b.name} ({b.market})
@@ -286,7 +242,7 @@ function AutoTraderContent() {
             <div>
               <span className="text-muted-foreground block text-[10px]">Live Spot</span>
               <span className="font-mono font-bold text-cyan-400">
-                {currentSpot ? currentSpot.toFixed(2) : '---'}
+                {freeBotState?.currentQuote?.toFixed(2) ?? '---'}
               </span>
             </div>
           </div>
@@ -341,12 +297,38 @@ function AutoTraderContent() {
             </div>
           )}
 
+          {activeBot.id === 'infinity-algo' && (
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/80 bg-surface/50 p-3 text-xs">
+              <div><span className="block text-[10px] text-muted-foreground">Current stake</span><span className="font-mono text-white">${(infinityState?.stake ?? activeBot.stake).toFixed(2)}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Prediction</span><span className="font-mono text-white">{infinityState?.prediction ?? 1}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Wins</span><span className="font-mono text-white">{infinityState?.runCount ?? 0}/5</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Run P/L</span><span className="font-mono text-white">{currency} {(infinityState?.totalProfit ?? 0).toFixed(2)}</span></div>
+              {infinityState?.stopped && <div className="col-span-2 text-amber-300">Stopped: {infinityState.stopped}</div>}
+            </div>
+          )}
+
+          {isCatalogFreeBotId(activeBot.id) && (
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/80 bg-surface/50 p-3 text-xs">
+              <div><span className="block text-[10px] text-muted-foreground">Current stake</span><span className="font-mono text-white">${(freeBotState?.stake ?? activeBot.stake).toFixed(2)}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Trades</span><span className="font-mono text-white">{freeBotState?.tradesPlaced ?? 0}/{maxRuns}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Wins / losses</span><span className="font-mono text-white">{freeBotState?.wins ?? 0} / {freeBotState?.losses ?? 0}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Run P/L</span><span className="font-mono text-white">{currency} {(freeBotState?.totalProfit ?? 0).toFixed(2)}</span></div>
+              {freeBotState?.stopped && <div className="col-span-2 text-amber-300">Stopped: {freeBotState.stopped}</div>}
+            </div>
+          )}
+
           {/* Action Control */}
           <div className="pt-2 space-y-2">
             <button
               type="button"
-              onClick={() => setRunning(!running)}
-              disabled={activeBot.id === 'goldmine-m1' && (!isConnected || !token)}
+              onClick={() => {
+                if (activeBot.id === 'texas-even') {
+                  router.push(`/dashboard/bot-builder?view=quick&bot=${encodeURIComponent(activeBot.name)}`)
+                  return
+                }
+                setRunning(!running)
+              }}
+              disabled={(activeBot.id === 'goldmine-m1' || activeBot.id === 'infinity-algo' || isCatalogFreeBotId(activeBot.id)) && (!isConnected || !token)}
               className={`w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 running
                   ? 'bg-danger text-white hover:opacity-95'
@@ -354,7 +336,7 @@ function AutoTraderContent() {
               } disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {running ? 'Stop Auto Trader' : activeBot.id === 'goldmine-m1' ? 'Run Advanced Goldmine M1' : 'Start Continuous Auto Trader'}
+              {running ? 'Stop Auto Trader' : activeBot.id === 'texas-even' ? 'Configure in Bot Builder' : `Run ${activeBot.name}`}
             </button>
 
             {running && (

@@ -12,8 +12,10 @@ import { derivWS, DerivTick } from '@/lib/deriv-websocket'
 import { useTradingStore, BotDefinition, GOLDMINE_M1_BOT, INFINITY_ALGO_BOT, TEXAS_EVEN_BOT } from '@/stores/trading-store'
 import { GoldmineM1State } from '@/lib/bots/goldmine-m1'
 import { InfinityAlgoState } from '@/lib/bots/infinity-algo'
+import { FreeBotStrategyState } from '@/lib/bots/free-bot-strategy'
 import { calculateWorstCaseExposure, TexasEvenConfig, TexasEvenState } from '@/lib/bots/texas-even'
-import { getGoldmineM1Runner, getInfinityAlgoRunner, getTexasEvenRunner, GoldmineM1Runner, InfinityAlgoRunner, TexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { getFreeBotRunner, getGoldmineM1Runner, getInfinityAlgoRunner, getTexasEvenRunner, GoldmineM1Runner, InfinityAlgoRunner, TexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { FREE_BOTS_COLLECTION, getFreeBotByName, isCatalogFreeBotId, toBotDefinition } from '@/lib/free-bots'
 
 type View = 'home' | 'builder' | 'quick'
 
@@ -52,6 +54,7 @@ function BotBuilderContent() {
   const [running, setRunning] = useState(false)
   const [goldmineState, setGoldmineState] = useState<GoldmineM1State | null>(null)
   const [infinityState, setInfinityState] = useState<InfinityAlgoState | null>(null)
+  const [freeBotState, setFreeBotState] = useState<FreeBotStrategyState | null>(null)
   const [texasState, setTexasState] = useState<TexasEvenState | null>(null)
   const [entryDigit, setEntryDigit] = useState<number | null>(null)
   const [texasConfig, setTexasConfig] = useState<Omit<TexasEvenConfig, 'entryDigit'>>({
@@ -92,6 +95,7 @@ function BotBuilderContent() {
 
   const texasWorstCaseExposure = calculateWorstCaseExposure(texasConfig)
   const texasRiskKey = JSON.stringify({ loginid, entryDigit, ...texasConfig, exposure: texasWorstCaseExposure })
+  const isCatalogBot = Boolean(selectedBot && isCatalogFreeBotId(selectedBot.id))
 
   const handleRunToggle = () => {
     if (running) {
@@ -114,22 +118,14 @@ function BotBuilderContent() {
   // Pre-load bot if passed in query param or store
   useEffect(() => {
     const botName = searchParams.get('bot')
-    if (botName) {
-      setView('quick')
-      if (botName === GOLDMINE_M1_BOT.name && selectedBot?.id !== GOLDMINE_M1_BOT.id) {
-        setSelectedBot(GOLDMINE_M1_BOT)
-        return
-      }
-      if (botName === INFINITY_ALGO_BOT.name && selectedBot?.id !== INFINITY_ALGO_BOT.id) {
-        setSelectedBot(INFINITY_ALGO_BOT)
-        return
-      }
-      if (botName === TEXAS_EVEN_BOT.name && selectedBot?.id !== TEXAS_EVEN_BOT.id) {
-        setSelectedBot(TEXAS_EVEN_BOT)
-        return
-      }
-      addJournalEntry(`Pre-loaded bot template: ${botName}`, 'info')
+    if (!botName) return
+    setView('quick')
+    const catalogBot = getFreeBotByName(botName)
+    if (catalogBot && selectedBot?.id !== catalogBot.id) {
+      setSelectedBot(toBotDefinition(catalogBot))
+      return
     }
+    addJournalEntry(`Pre-loaded bot template: ${botName}`, 'info')
   }, [searchParams, selectedBot?.id, setSelectedBot, addJournalEntry])
 
   const addBlock = (block: string) => {
@@ -157,6 +153,67 @@ function BotBuilderContent() {
   // Live execution loop when running
   useEffect(() => {
     if (!running) return
+
+    if (selectedBot && isCatalogFreeBotId(selectedBot.id)) {
+      const bot = FREE_BOTS_COLLECTION.find((item) => item.id === selectedBot.id)
+      if (!bot) {
+        addJournalEntry('The selected Free Bot configuration could not be found.', 'warning')
+        setRunning(false)
+        return
+      }
+      if (!isCatalogFreeBotId(bot.id)) {
+        addJournalEntry('The selected Free Bot strategy is not supported.', 'warning')
+        setRunning(false)
+        return
+      }
+      if (!isConnected || !token || !loginid) {
+        addJournalEntry(`Connect a Deriv account before running ${bot.name}.`, 'warning')
+        setRunning(false)
+        return
+      }
+
+      let runner: GoldmineM1Runner<any>
+      try {
+        runner = getFreeBotRunner({
+          token,
+          accountId: loginid,
+          currency,
+          strategyName: bot.name,
+          config: {
+            id: bot.id,
+            symbol: bot.market,
+            initialStake: bot.stake,
+            durationTicks: Number.parseInt(bot.duration, 10) || 1,
+          },
+          onSettlement: ({ stake, payout, profit, won }) => {
+            if (useTradingStore.getState().loginid === loginid) recordTradeResult(stake, payout, won, profit)
+          },
+        })
+      } catch (error) {
+        addJournalEntry(error instanceof Error ? error.message : `Could not resume ${bot.name}.`, 'warning')
+        setRunning(false)
+        return
+      }
+
+      const unsubscribeCallbacks = runner.subscribe({
+        onState: (state: FreeBotStrategyState) => {
+          if (useTradingStore.getState().loginid !== loginid) return
+          setFreeBotState(state)
+          if (state.stopped) setRunning(false)
+        },
+        onLog: addJournalEntry,
+        onError: (error: Error) => {
+          addJournalEntry(error.message, 'warning')
+          setRunning(false)
+        },
+      })
+      void runner.start().catch(() => setRunning(false))
+
+      return () => {
+        unsubscribeCallbacks()
+        runner.stop()
+      }
+    }
 
     if (selectedBot?.id === GOLDMINE_M1_BOT.id || selectedBot?.id === INFINITY_ALGO_BOT.id || selectedBot?.id === TEXAS_EVEN_BOT.id) {
       const isInfinity = selectedBot.id === INFINITY_ALGO_BOT.id
@@ -457,7 +514,7 @@ function BotBuilderContent() {
                     ? GOLDMINE_M1_BOT.name
                     : selectedBot?.id === INFINITY_ALGO_BOT.id
                       ? INFINITY_ALGO_BOT.name
-                      : 'Configure Strategy'}
+                      : selectedBot?.name || 'Configure Strategy'}
                 </h3>
 
                 {selectedBot?.id === GOLDMINE_M1_BOT.id ? (
@@ -548,6 +605,22 @@ function BotBuilderContent() {
                     <p className="text-[10px] leading-relaxed text-amber-200">The entry digit does not change the odds. Martingale can lose more than the stop loss. Results are not guaranteed.</p>
                     {(!isConnected || !token) && <p className="text-amber-300">Connect a Deriv account to run this bot.</p>}
                   </div>
+                ) : isCatalogBot ? (
+                  <div className="space-y-3 text-xs">
+                    <p className="leading-relaxed text-slate-300">{selectedBot?.description}</p>
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#1e2a40] bg-[#0d1424] p-3">
+                      <div><span className="block text-slate-500">Market</span><span className="font-mono text-white">{selectedBot?.market}</span></div>
+                      <div><span className="block text-slate-500">Contract</span><span className="font-mono text-white">{selectedBot?.contractType} · {selectedBot?.duration}</span></div>
+                      <div><span className="block text-slate-500">Initial stake</span><span className="font-mono text-white">${selectedBot?.stake.toFixed(2)} {currency}</span></div>
+                      <div><span className="block text-slate-500">Session limits</span><span className="font-mono text-white">$15 loss / $30 profit / 50 trades</span></div>
+                      <div className="col-span-2 border-t border-[#1e2a40] pt-2 text-slate-300">
+                        Trades {freeBotState?.tradesPlaced ?? 0} · Wins {freeBotState?.wins ?? 0} · Losses {freeBotState?.losses ?? 0} · P/L {currency} {(freeBotState?.totalProfit ?? 0).toFixed(2)}
+                      </div>
+                      {freeBotState?.stopped && <div className="col-span-2 text-amber-300">Stopped: {freeBotState.stopped}</div>}
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-amber-200">Results are not guaranteed. Stop-loss limits can be exceeded by an open contract.</p>
+                    {(!isConnected || !token) && <p className="text-amber-300">Connect a Deriv account to run this bot.</p>}
+                  </div>
                 ) : (
                   <>
                     <div>
@@ -609,7 +682,7 @@ function BotBuilderContent() {
                 <button
                   type="button"
                   onClick={handleRunToggle}
-                  disabled={((selectedBot?.id === GOLDMINE_M1_BOT.id || selectedBot?.id === INFINITY_ALGO_BOT.id || selectedBot?.id === TEXAS_EVEN_BOT.id) && (!isConnected || !token)) || (selectedBot?.id === TEXAS_EVEN_BOT.id && entryDigit === null && !running)}
+                  disabled={((selectedBot?.id === GOLDMINE_M1_BOT.id || selectedBot?.id === INFINITY_ALGO_BOT.id || selectedBot?.id === TEXAS_EVEN_BOT.id || isCatalogBot) && (!isConnected || !token)) || (selectedBot?.id === TEXAS_EVEN_BOT.id && entryDigit === null && !running)}
                   className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                     running ? 'bg-danger text-white' : 'gradient-ranger text-black shadow-glow-sm'
                   } disabled:cursor-not-allowed disabled:opacity-50`}
@@ -623,7 +696,9 @@ function BotBuilderContent() {
                         ? 'Run Infinity Algo'
                         : selectedBot?.id === TEXAS_EVEN_BOT.id
                           ? 'Run Texas Even Bot'
-                          : 'Run Strategy on Live Feed'}
+                            : selectedBot?.name
+                              ? `Run ${selectedBot.name}`
+                              : 'Run Strategy on Live Feed'}
                 </button>
               </div>
             </div>
@@ -638,7 +713,7 @@ function BotBuilderContent() {
             <button
               type="button"
               onClick={handleRunToggle}
-              disabled={((selectedBot?.id === GOLDMINE_M1_BOT.id || selectedBot?.id === INFINITY_ALGO_BOT.id || selectedBot?.id === TEXAS_EVEN_BOT.id) && (!isConnected || !token)) || (selectedBot?.id === TEXAS_EVEN_BOT.id && entryDigit === null && !running)}
+              disabled={((selectedBot?.id === GOLDMINE_M1_BOT.id || selectedBot?.id === INFINITY_ALGO_BOT.id || selectedBot?.id === TEXAS_EVEN_BOT.id || isCatalogBot) && (!isConnected || !token)) || (selectedBot?.id === TEXAS_EVEN_BOT.id && entryDigit === null && !running)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
                 running ? 'bg-danger text-white' : 'gradient-ranger text-black'
               } disabled:cursor-not-allowed disabled:opacity-50`}
@@ -652,6 +727,8 @@ function BotBuilderContent() {
                     ? 'Run Infinity'
                     : selectedBot?.id === TEXAS_EVEN_BOT.id
                       ? 'Run Texas Even'
+                      : selectedBot?.name
+                        ? `Run ${selectedBot.name}`
                       : 'Run'}
             </button>
 

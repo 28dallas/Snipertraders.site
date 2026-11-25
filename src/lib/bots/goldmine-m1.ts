@@ -62,6 +62,22 @@ export class GoldmineM1 {
 
   constructor(config: Partial<GoldmineM1Config> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
+    if (!Number.isInteger(this.config.entryDigit) || this.config.entryDigit < 0 || this.config.entryDigit > 9) {
+      throw new Error('Goldmine M1 entry digit must be between zero and nine.')
+    }
+    if (![this.config.initialStake, this.config.minStake, this.config.martingale, this.config.takeProfit, this.config.stopLoss]
+      .every((value) => Number.isFinite(value) && value > 0)) {
+      throw new Error('Goldmine M1 stakes, multipliers, and limits must be greater than zero.')
+    }
+    if (this.config.minStake > this.config.initialStake) throw new Error('Goldmine M1 minimum stake cannot exceed its initial stake.')
+    if (this.config.martingale < 1) throw new Error('Goldmine M1 recovery multiplier must be at least one.')
+    if (!Number.isInteger(this.config.durationTicks) || this.config.durationTicks < 1) {
+      throw new Error('Goldmine M1 duration must be at least one tick.')
+    }
+    if (![this.config.predictionNormal, this.config.predictionRecovery]
+      .every((value) => Number.isInteger(value) && value >= 0 && value <= 9)) {
+      throw new Error('Goldmine M1 predictions must be digits between zero and nine.')
+    }
     this.state = {
       stake: this.config.initialStake,
       prediction: this.config.predictionNormal,
@@ -75,7 +91,7 @@ export class GoldmineM1 {
   }
 
   onTick(lastDigit: number): BuyDecision | null {
-    if (this.state.stopped || this.state.contractOpen || !Number.isInteger(lastDigit)) return null
+    if (this.state.stopped || this.state.contractOpen || !Number.isInteger(lastDigit) || lastDigit < 0 || lastDigit > 9) return null
     if (this.state.mode === 'WAIT_ENTRY' && this.config.requireEntryDigitOnFirstTrade && lastDigit !== this.config.entryDigit) {
       return null
     }
@@ -105,7 +121,7 @@ export class GoldmineM1 {
       this.cumulativeLoss += Math.abs(result.profit)
     }
 
-    if (this.state.totalProfit > this.config.takeProfit) {
+    if (this.state.totalProfit >= this.config.takeProfit) {
       this.state = { ...this.state, stopped: 'TAKE_PROFIT' }
       return this.createSettleOutcome()
     }

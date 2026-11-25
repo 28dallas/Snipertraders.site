@@ -1,4 +1,4 @@
-import { hasActiveGoldmineRunner, hasActiveInfinityAlgoRunner, hasActiveTexasEvenRunner } from '@/lib/bots/goldmine-m1-runner'
+import { hasActiveAutomatedBotRunner } from '@/lib/bots/goldmine-m1-runner'
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_DERIV_CLIENT_ID?.trim()
 
@@ -9,7 +9,7 @@ function base64Url(bytes: Uint8Array) {
 }
 
 export async function startDerivLogin() {
-  if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+  if (hasActiveAutomatedBotRunner()) {
     throw new Error('Stop the active bot and settle any open contract before changing Deriv accounts.')
   }
   if (!CLIENT_ID) throw new Error('NEXT_PUBLIC_DERIV_CLIENT_ID is not configured.')
@@ -30,7 +30,7 @@ export async function startDerivLogin() {
   url.searchParams.set('state', state)
   url.searchParams.set('code_challenge', challenge)
   url.searchParams.set('code_challenge_method', 'S256')
-  if (hasActiveGoldmineRunner() || hasActiveInfinityAlgoRunner() || hasActiveTexasEvenRunner()) {
+  if (hasActiveAutomatedBotRunner()) {
     throw new Error('Stop the active bot and settle any open contract before changing Deriv accounts.')
   }
   window.location.assign(url.toString())

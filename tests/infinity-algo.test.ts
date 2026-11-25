@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { InfinityAlgo } from '@/lib/bots/infinity-algo'
 
 describe('InfinityAlgo', () => {
+  it('rejects invalid configuration and ignores out-of-range tick digits', () => {
+    expect(() => new InfinityAlgo({ entryDigit: 10 })).toThrow(/entry digit/i)
+
+    const bot = new InfinityAlgo()
+    expect(bot.onTick(10)).toBeNull()
+    expect(bot.onTick(-1)).toBeNull()
+  })
+
   it('waits for the configured entry digit before the first trade and then trades immediately on that tick', () => {
     const bot = new InfinityAlgo()
 
