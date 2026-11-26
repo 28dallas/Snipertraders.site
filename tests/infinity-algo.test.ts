@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { InfinityAlgo } from '@/lib/bots/infinity-algo'
+import { DerivTick } from '@/lib/deriv-websocket'
 
 describe('InfinityAlgo', () => {
   it('rejects invalid configuration and ignores out-of-range tick digits', () => {
@@ -12,16 +13,26 @@ describe('InfinityAlgo', () => {
 
   it('waits for the configured entry digit before the first trade and then trades immediately on that tick', () => {
     const bot = new InfinityAlgo()
+    const makeTick = (quote: number): DerivTick => ({
+      ask: quote,
+      bid: quote,
+      epoch: 1,
+      id: String(quote),
+      pip_size: 1,
+      quote,
+      symbol: 'R_10',
+    })
 
-    expect(bot.onTick(7)).toBeNull()
-    expect(bot.onTick(4)).toMatchObject({
+    expect(bot.onTick(7, makeTick(123.7))).toBeNull()
+    expect(bot.getState()).toMatchObject({ currentQuote: 123.7, lastDigit: 7, entrySignal: false })
+    expect(bot.onTick(4, makeTick(123.4))).toMatchObject({
       contractType: 'DIGITOVER',
       symbol: 'R_10',
       stake: 0.5,
       barrier: 1,
       durationTicks: 1,
     })
-    expect(bot.getState().entrySignal).toBe(true)
+    expect(bot.getState()).toMatchObject({ entrySignal: true, currentQuote: 123.4, lastDigit: 4 })
   })
 
   it('increments wins and stops after the configured session limit is reached', () => {

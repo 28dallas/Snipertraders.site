@@ -242,7 +242,7 @@ function AutoTraderContent() {
             <div>
               <span className="text-muted-foreground block text-[10px]">Live Spot</span>
               <span className="font-mono font-bold text-cyan-400">
-                {freeBotState?.currentQuote?.toFixed(2) ?? '---'}
+                {(freeBotState?.currentQuote ?? infinityState?.currentQuote)?.toFixed(2) ?? '---'}
               </span>
             </div>
           </div>
@@ -301,6 +301,7 @@ function AutoTraderContent() {
             <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/80 bg-surface/50 p-3 text-xs">
               <div><span className="block text-[10px] text-muted-foreground">Current stake</span><span className="font-mono text-white">${(infinityState?.stake ?? activeBot.stake).toFixed(2)}</span></div>
               <div><span className="block text-[10px] text-muted-foreground">Prediction</span><span className="font-mono text-white">{infinityState?.prediction ?? 1}</span></div>
+              <div><span className="block text-[10px] text-muted-foreground">Entry gate</span><span className="font-mono text-white">{infinityState?.entrySignal ? 'Triggered' : infinityState?.lastDigit === null || infinityState?.lastDigit === undefined ? 'Waiting for ticks' : `Waiting for digit 4 (last: ${infinityState.lastDigit})`}</span></div>
               <div><span className="block text-[10px] text-muted-foreground">Wins</span><span className="font-mono text-white">{infinityState?.runCount ?? 0}/5</span></div>
               <div><span className="block text-[10px] text-muted-foreground">Run P/L</span><span className="font-mono text-white">{currency} {(infinityState?.totalProfit ?? 0).toFixed(2)}</span></div>
               {infinityState?.stopped && <div className="col-span-2 text-amber-300">Stopped: {infinityState.stopped}</div>}

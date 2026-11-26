@@ -19,7 +19,11 @@ export interface GoldmineDerivConnection {
   authorize(token: string): Promise<any>
   proposal(params: Record<string, unknown>): Promise<any>
   buy(proposalId: string, price: number): Promise<any>
-  subscribeTicks(symbol: string, onTick: (tick: DerivTick) => void): () => void
+  subscribeTicks(
+    symbol: string,
+    onTick: (tick: DerivTick) => void,
+    onError?: (error: Error) => void
+  ): () => void
   subscribeContract(
     contractId: number,
     onUpdate: (contract: Record<string, any>) => void,
@@ -147,6 +151,7 @@ export class GoldmineM1Runner<TStrategy extends {
 
     this.isRunning = true
     this.attachConnectionCloseObserver()
+    this.emitLog(`${this.strategyName} connecting to Deriv...`, 'info')
     try {
       if (!this.connection.isConnected) await this.connection.connect()
       if (!this.isRunning) return
@@ -260,7 +265,12 @@ export class GoldmineM1Runner<TStrategy extends {
   private subscribeToTicks(): void {
     if (!this.isRunning || this.unsubscribeTicks) return
     this.emitLog(`${this.strategyName} listening on ${this.symbol}.`, 'info')
-    this.unsubscribeTicks = this.connection.subscribeTicks(this.symbol, (tick) => this.handleTick(tick))
+    this.unsubscribeTicks = this.connection.subscribeTicks(this.symbol, (tick) => this.handleTick(tick), (error) => {
+      if (!this.isRunning) return
+      this.stop()
+      this.emitLog(`${this.strategyName} could not receive ticks: ${error.message}`, 'warning')
+      this.emitError(error)
+    })
   }
 
   private monitorOpenContract(): void {

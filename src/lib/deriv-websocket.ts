@@ -307,7 +307,11 @@ export class DerivWebSocket {
   }
 
   // Utility to subscribe and listen to ticks
-  subscribeTicks(symbol: string, onTick: (tick: DerivTick) => void): () => void {
+  subscribeTicks(
+    symbol: string,
+    onTick: (tick: DerivTick) => void,
+    onError?: (error: Error) => void
+  ): () => void {
     const unsubEvent = this.on(`tick_${symbol}`, onTick)
     const listenerCount = (this.subscriptionListeners.get(symbol) ?? 0) + 1
     this.subscriptionListeners.set(symbol, listenerCount)
@@ -329,7 +333,9 @@ export class DerivWebSocket {
         }
       }).catch((err) => {
         if (this.pendingTickRequests.get(symbol) === subscriptionRequest) this.pendingTickRequests.delete(symbol)
-        console.warn(`[DerivWS] Could not subscribe to ticks for ${symbol}:`, err.message)
+        const error = err instanceof Error ? err : new Error(`Could not subscribe to ticks for ${symbol}.`)
+        console.warn(`[DerivWS] Could not subscribe to ticks for ${symbol}:`, error.message)
+        onError?.(error)
       })
     }
     return () => {

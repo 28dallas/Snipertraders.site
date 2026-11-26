@@ -1,4 +1,5 @@
 import { BuyDecision } from '@/lib/bots/goldmine-m1'
+import { DerivTick } from '@/lib/deriv-websocket'
 
 export interface InfinityAlgoConfig {
   symbol: string
@@ -21,6 +22,8 @@ export interface InfinityAlgoConfig {
 export interface InfinityAlgoState {
   stake: number
   prediction: number
+  currentQuote: number | null
+  lastDigit: number | null
   runCount: number
   totalProfit: number
   entrySignal: boolean
@@ -90,6 +93,8 @@ export class InfinityAlgo {
     this.state = {
       stake: this.config.initialStake,
       prediction: this.config.initialPrediction,
+      currentQuote: null,
+      lastDigit: null,
       runCount: 0,
       totalProfit: 0,
       entrySignal: !this.config.requireEntryDigit,
@@ -98,7 +103,13 @@ export class InfinityAlgo {
     }
   }
 
-  onTick(lastDigit: number): BuyDecision | null {
+  onTick(lastDigit: number, tick?: DerivTick): BuyDecision | null {
+    if (tick && Number.isFinite(tick.quote)) {
+      this.state = { ...this.state, currentQuote: tick.quote }
+    }
+    if (Number.isInteger(lastDigit) && lastDigit >= 0 && lastDigit <= 9) {
+      this.state = { ...this.state, lastDigit }
+    }
     if (this.state.stopped || this.contractOpen || !Number.isInteger(lastDigit) || lastDigit < 0 || lastDigit > 9) return null
 
     if (!this.state.entrySignal) {
